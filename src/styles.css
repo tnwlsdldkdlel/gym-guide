@@ -1,8 +1,13 @@
 /* 모바일 전용. 엄지 영역(화면 아래)에 주요 버튼을 두고 터치 영역은 44px 이상. 색은 원판 색 규칙에서 가져와 날 종류를 구분 */
 :root {
-  --bg: #f2f4f6; --card: #ffffff; --fg: #191f28; --sub: #4e5968; --muted: #8b95a1; --line: #e5e8eb; --soft: #f2f4f6;
-  --upper: #1d5cc0; --lower: #d13b2f; --core: #b88a00; --core-fill: #f2c230; --cardio: #1d8048; --ok: #1d8048; --accent: #191f28;
+  --bg: #ffffff; --card: #ffffff; --fg: #191f28; --sub: #4e5968; --muted: #66707d; --line: #e5e8eb; --soft: #f2f4f6;
+  /* 날 색(원판 색)은 날 구분에만 쓰고, 상태·에러·포커스는 별도 토큰. 글자로 쓰는 색은 회색 바탕에서도 4.5:1 이상 */
+  --upper: #1d5cc0; --lower: #d13b2f; --core: #8a6700; --core-fill: #f2c230; --cardio: #1d8048;
+  --ok: #1d8048; --danger: #c4261d; --focus: #1d5cc0; --accent: #191f28;
+  /* 글자 크기 7단계: 12 / 13 / 15 / 16 / 20 / 24 / 32px */
+  --fs-xs: .75rem; --fs-sm: .8125rem; --fs-md: .9375rem; --fs-base: 1rem; --fs-lg: 1.25rem; --fs-xl: 1.5rem; --fs-2xl: 2rem;
   --radius: 16px;
+  --shadow: 0 1px 2px rgba(0,0,0,.04), 0 2px 10px rgba(0,0,0,.06);
   --tabbar-h: 60px;
   --font: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   color-scheme: light;
@@ -14,24 +19,24 @@ body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 var(--
 img { max-width: 100%; display: block }
 [hidden] { display: none !important }
 h1, h2, h3, p { margin: 0 }
-h1, h2, h3 { text-wrap: balance; letter-spacing: -.02em }
+h1, h2, h3 { text-wrap: balance; letter-spacing: -.02em; font-weight: 700 }
 button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; padding: 0 }
 button:disabled { opacity: .4; cursor: default }
-:focus-visible { outline: 3px solid var(--upper); outline-offset: 2px }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px }
 .muted { color: var(--muted) }
 .sub { color: var(--sub) }
-.err { color: var(--lower); font-weight: 600; font-size: .9rem }
-.hint { font-size: .85rem; color: var(--sub) }
+.err { color: var(--danger); font-weight: 600; font-size: var(--fs-md) }
+.hint { font-size: var(--fs-sm); color: var(--sub) }
 
 /* 화면 틀: 가운데 480px 칼럼 */
 .screen { max-width: 480px; margin: 0 auto; min-height: 100dvh; padding: calc(env(safe-area-inset-top, 0px) + 20px) max(20px, env(safe-area-inset-right, 0px)) calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 96px) max(20px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 16px }
 .screen.plain { padding-bottom: 40px }
-.title { font-size: 1.5rem; font-weight: 800 }
+.title { font-size: var(--fs-xl); font-weight: 700 }
 
 /* 아래 탭 바 */
 .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: var(--card); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px) }
 .tabbar nav { max-width: 480px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); height: var(--tabbar-h) }
-.tabbar button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: .75rem; font-weight: 600; color: var(--muted) }
+.tabbar button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: var(--fs-xs); font-weight: 600; color: var(--muted) }
 .tabbar svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
 .tabbar button[aria-current="page"] { color: var(--fg) }
 
@@ -40,38 +45,40 @@ button:disabled { opacity: .4; cursor: default }
 .dock.no-tab { bottom: 0; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)) }
 .dock > div { max-width: 480px; margin: 0 auto; display: flex; gap: 8px }
 
-.btn { min-height: 52px; border-radius: 14px; padding: 0 18px; font-weight: 700; font-size: 1.02rem; display: inline-flex; align-items: center; justify-content: center; gap: 6px }
+.btn { min-height: 52px; border-radius: 14px; padding: 0 18px; font-weight: 600; font-size: var(--fs-base); display: inline-flex; align-items: center; justify-content: center; gap: 6px }
 .btn.primary { background: var(--accent); color: #fff; flex: 1 }
 .btn.secondary { background: var(--card); border: 1px solid var(--line); color: var(--fg) }
-.btn.small { min-height: 40px; font-size: .9rem; border-radius: 12px; padding: 0 14px }
-.chip-btn { min-height: 40px; padding: 0 14px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); font-weight: 600; font-size: .9rem; display: inline-flex; align-items: center; gap: 4px }
+.btn.small { min-height: 40px; font-size: var(--fs-md); border-radius: 12px; padding: 0 14px }
+.chip-btn { min-height: 40px; padding: 0 14px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); font-weight: 600; font-size: var(--fs-md); display: inline-flex; align-items: center; gap: 4px }
 
-.card { background: var(--card); border-radius: var(--radius); padding: 20px }
+.card { background: var(--card); box-shadow: var(--shadow); border-radius: var(--radius); padding: 20px }
 .card.tight { padding: 16px }
+.card-title { font-size: var(--fs-base); font-weight: 700 }
+.label { font-size: var(--fs-md); font-weight: 600 }
 
 /* 오늘 화면 */
 .today-head { display: grid; gap: 4px }
-.today-head .date { font-size: .9rem; color: var(--sub); font-weight: 600 }
-.today-head h1 { font-size: 2rem; font-weight: 800; color: var(--c) }
+.today-head .date { font-size: var(--fs-md); color: var(--sub); font-weight: 600 }
+.today-head h1 { font-size: var(--fs-2xl); font-weight: 800; color: var(--c) }
 .progress { height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; margin-top: 8px }
 .progress span { display: block; height: 100%; background: var(--c); border-radius: inherit; transition: width .3s }
 .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center }
-.week div { padding: 8px 0; border-radius: 12px; font-size: .75rem; line-height: 1.4; min-width: 0 }
-.week b { display: block; font-size: .85rem; color: var(--sub) }
-.week .on { background: var(--card); box-shadow: 0 0 0 2px var(--fg) inset }
+.week div { padding: 8px 0; border-radius: 12px; font-size: var(--fs-xs); line-height: 1.4; min-width: 0 }
+.week b { display: block; font-size: var(--fs-sm); font-weight: 600; color: var(--sub) }
+.week .on { background: var(--soft); box-shadow: 0 0 0 2px var(--fg) inset }
 .scroll-x { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 -20px; padding: 0 20px }
 .scroll-x::-webkit-scrollbar { display: none }
 .scroll-x .chip-btn { flex: none }
 .chip-btn[aria-pressed="true"] { background: var(--fg); color: #fff; border-color: var(--fg) }
 
-.section-label { font-size: .85rem; font-weight: 700; color: var(--sub); display: flex; justify-content: space-between; align-items: baseline }
-.ex-list { background: var(--card); border-radius: var(--radius); overflow: hidden }
+.section-label { font-size: var(--fs-sm); font-weight: 600; color: var(--sub); display: flex; justify-content: space-between; align-items: baseline }
+.ex-list { background: var(--card); box-shadow: var(--shadow); border-radius: var(--radius); overflow: hidden }
 .ex-row { width: 100%; display: grid; grid-template-columns: 56px 1fr 28px; gap: 12px; align-items: center; padding: 12px 16px; text-align: left; min-height: 72px }
 .ex-row + .ex-row { border-top: 1px solid var(--line) }
 .ex-row img { width: 56px; height: 56px; object-fit: cover; border-radius: 12px; background: var(--soft) }
-.ex-row b { display: block; font-size: 1rem; line-height: 1.35 }
-.ex-row small { color: var(--sub); font-size: .82rem }
-.status { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; font-size: .8rem; font-weight: 800; color: #fff }
+.ex-row b { display: block; font-size: var(--fs-base); font-weight: 600; line-height: 1.35 }
+.ex-row small { color: var(--sub); font-size: var(--fs-sm) }
+.status { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; font-size: var(--fs-sm); font-weight: 700; color: #fff }
 .status.part { border-color: var(--c) }
 .status.done { background: var(--ok); border-color: var(--ok) }
 
@@ -79,18 +86,18 @@ button:disabled { opacity: .4; cursor: default }
 .workout { position: fixed; inset: 0; z-index: 20; background: var(--bg); overflow-y: auto; overscroll-behavior: contain }
 .workout .screen { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 170px); padding-top: calc(env(safe-area-inset-top, 0px) + 12px) }
 .wk-top { display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 8px }
-.icon-btn { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-size: 1.4rem }
+.icon-btn { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-size: var(--fs-xl) }
 .segs { display: flex; gap: 3px }
 .segs span { flex: 1; height: 5px; border-radius: 99px; background: var(--line) }
 .segs .done { background: var(--ok) }
 .segs .cur { background: var(--fg) }
-.wk-count { font-weight: 700; font-size: .9rem; color: var(--sub) }
+.wk-count { font-weight: 600; font-size: var(--fs-md); color: var(--sub) }
 
 .fig { position: relative; aspect-ratio: 3 / 2; border-radius: var(--radius); overflow: hidden; background: #000; margin: 0 }
 .fig .f { position: absolute; inset: 0 }
 .fig img { width: 100%; height: 100%; object-fit: cover }
 .fig .f2 { animation: swap 2.6s infinite }
-.fig .tag { position: absolute; left: 10px; top: 10px; background: rgba(0,0,0,.7); color: #fff; font-size: .75rem; font-weight: 600; padding: 3px 9px; border-radius: 6px }
+.fig .tag { position: absolute; left: 10px; top: 10px; background: rgba(0,0,0,.7); color: #fff; font-size: var(--fs-xs); font-weight: 600; padding: 3px 9px; border-radius: 6px }
 @keyframes swap { 0%, 42% { opacity: 0 } 50%, 92% { opacity: 1 } 100% { opacity: 0 } }
 @media (prefers-reduced-motion: reduce) {
   .fig { aspect-ratio: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 2px }
@@ -99,31 +106,33 @@ button:disabled { opacity: .4; cursor: default }
 }
 
 .ex-info { display: grid; gap: 6px }
-.ex-info h2 { font-size: 1.5rem; font-weight: 800 }
-.ex-info .en { color: var(--muted); font-size: .85rem }
+.ex-info h2 { font-size: var(--fs-xl) }
+.ex-info .en { color: var(--muted); font-size: var(--fs-sm) }
 .chips { display: flex; flex-wrap: wrap; gap: 4px }
-.chips span { font-size: .75rem; padding: 3px 9px; border-radius: 999px; background: var(--card); color: var(--sub); font-weight: 600 }
-.swapped { font-size: .85rem; font-weight: 700; color: var(--upper) }
-.plan { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--card); border-radius: var(--radius); margin: 0 }
+.chips span { font-size: var(--fs-xs); padding: 3px 9px; border-radius: 999px; background: var(--soft); color: var(--sub); font-weight: 600 }
+.swapped { font-size: var(--fs-sm); font-weight: 700; color: var(--fg) }
+.plan { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--card); box-shadow: var(--shadow); border-radius: var(--radius); margin: 0 }
 .plan div { padding: 12px 6px; text-align: center; min-width: 0 }
 .plan div + div { border-left: 1px solid var(--line) }
-.plan dt { font-size: .72rem; color: var(--muted); font-weight: 600 }
-.plan dd { margin: 0; font-weight: 800; font-size: 1.02rem }
+.plan dt { font-size: var(--fs-xs); color: var(--muted); font-weight: 600 }
+.plan dd { margin: 0; font-weight: 700; font-size: var(--fs-base) }
 .row-gap { display: flex; gap: 8px; flex-wrap: wrap }
 
-/* 세트 기록 */
+/* 세트 기록: 운동 중에 팔 길이 거리에서 보는 숫자라 크게 */
 .sets { display: grid; gap: 8px }
-.set { display: grid; grid-template-columns: 24px 1fr 1fr 64px; gap: 8px; align-items: center; background: var(--card); border-radius: 14px; padding: 8px }
-.set.no-kg { grid-template-columns: 24px 1fr 64px }
-.set.done { box-shadow: 0 0 0 2px var(--ok) inset }
-.set .no { font-weight: 800; color: var(--muted); text-align: center; font-size: .9rem }
+.set { display: grid; grid-template-columns: 24px 1fr 64px; gap: 8px; align-items: center; background: var(--card); box-shadow: var(--shadow); border-radius: 14px; padding: 8px }
+/* 무게·횟수 스테퍼를 한 줄에 두면 폰 폭에서 + 버튼이 넘쳐서 두 줄로 쌓고, 완료 버튼은 두 줄 높이 */
+.set:not(.no-kg) .no { grid-row: span 2 }
+.set:not(.no-kg) .check { grid-column: 3; grid-row: 1 / span 2; height: auto; align-self: stretch }
+.set.done { box-shadow: 0 0 0 2px var(--ok) inset, var(--shadow) }
+.set .no { font-weight: 600; color: var(--muted); text-align: center; font-size: var(--fs-md) }
 .stepper { display: grid; grid-template-columns: 40px 1fr 40px; align-items: center; background: var(--soft); border-radius: 12px; min-width: 0 }
-.stepper button { height: 44px; font-size: 1.3rem; font-weight: 700; color: var(--sub) }
-.stepper span { text-align: center; font-weight: 800; font-size: 1rem; white-space: nowrap }
-.check { height: 44px; border-radius: 12px; background: var(--soft); font-weight: 800; color: var(--sub) }
+.stepper button { height: 44px; font-size: var(--fs-lg); font-weight: 600; color: var(--sub) }
+.stepper span { text-align: center; font-weight: 700; font-size: var(--fs-lg); white-space: nowrap }
+.check { height: 44px; border-radius: 12px; background: var(--soft); font-weight: 600; color: var(--sub) }
 .check[aria-pressed="true"] { background: var(--ok); color: #fff }
 .fb { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px }
-.fb button { min-height: 48px; border-radius: 12px; background: var(--card); font-weight: 700 }
+.fb button { min-height: 48px; border-radius: 12px; background: var(--soft); font-weight: 600 }
 .fb button[aria-pressed="true"] { background: var(--fg); color: #fff }
 
 /* 아래에서 올라오는 창 */
@@ -132,51 +141,71 @@ dialog.sheet::backdrop { background: rgba(0,0,0,.45) }
 .sheet-in { padding: 12px 20px calc(20px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 14px }
 .grabber { width: 40px; height: 5px; border-radius: 99px; background: var(--line); margin: 0 auto }
 .sheet-head { display: flex; justify-content: space-between; align-items: center }
-.sheet-head h3 { font-size: 1.15rem; font-weight: 800 }
+.sheet-head h3 { font-size: var(--fs-lg) }
 .step-card { min-height: 180px; display: grid; align-content: start; gap: 10px; background: var(--soft); border-radius: var(--radius); padding: 20px }
-.step-card .kicker { font-size: .8rem; font-weight: 800; color: var(--upper) }
-.step-card p { font-size: 1.15rem; font-weight: 600; line-height: 1.55 }
-.step-card ul { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; font-size: 1.02rem }
-.step-card.bad li::marker { content: "✕  "; color: var(--lower); font-weight: 800 }
+.step-card .kicker { font-size: var(--fs-sm); font-weight: 700; color: var(--sub) }
+.step-card p { font-size: var(--fs-lg); font-weight: 600; line-height: 1.55 }
+.step-card ul { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; font-size: var(--fs-base) }
+.step-card.bad li::marker { content: "✕  "; color: var(--danger); font-weight: 700 }
 .dots { display: flex; gap: 5px; justify-content: center }
 .dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--line) }
 .dots .on { background: var(--fg); width: 18px; border-radius: 99px }
 .alt-opt { width: 100%; display: grid; grid-template-columns: 56px 1fr; gap: 12px; align-items: center; text-align: left; padding: 10px; border-radius: 14px; background: var(--soft) }
 .alt-opt img { width: 56px; height: 56px; border-radius: 10px; object-fit: cover }
-.alt-opt small { color: var(--sub); font-size: .82rem; display: block }
-.yt { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--fg); text-decoration: none; min-height: 44px }
-.yt svg { width: 20px; height: 20px; fill: var(--lower) }
+.alt-opt b { font-weight: 600 }
+.alt-opt small { color: var(--sub); font-size: var(--fs-sm); display: block }
+.yt { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--fg); text-decoration: none; min-height: 44px }
+.yt svg { width: 20px; height: 20px; fill: var(--danger) }
 
 /* 쉬는 시간: 운동 중 아래 버튼 위에 뜸 */
 .rest { position: fixed; left: 0; right: 0; z-index: 25; bottom: calc(env(safe-area-inset-bottom, 0px) + 84px); padding: 0 20px }
 .rest > div { max-width: 440px; margin: 0 auto; background: var(--fg); color: #fff; border-radius: 18px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.2) }
-.rest b { font-size: 1.7rem; font-weight: 800 }
-.rest button { min-height: 40px; padding: 0 12px; border-radius: 10px; background: rgba(255,255,255,.15); color: #fff; font-weight: 700; font-size: .9rem }
+.rest b { font-size: var(--fs-2xl); font-weight: 800 }
+.rest button { min-height: 40px; padding: 0 12px; border-radius: 10px; background: rgba(255,255,255,.15); color: #fff; font-weight: 600; font-size: var(--fs-md) }
 
 /* 완료 요약 */
 .done-hero { text-align: center; display: grid; gap: 8px; padding: 24px 0 }
 .done-hero .big { font-size: 3rem }
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px }
-.stats div { background: var(--card); border-radius: var(--radius); padding: 14px 8px; text-align: center }
-.stats b { display: block; font-size: 1.3rem; font-weight: 800 }
-.stats span { font-size: .75rem; color: var(--sub) }
+.stats div { background: var(--card); box-shadow: var(--shadow); border-radius: var(--radius); padding: 14px 8px; text-align: center }
+.stats b { display: block; font-size: var(--fs-xl); font-weight: 700 }
+.stats span { font-size: var(--fs-xs); color: var(--sub) }
 
 /* 폼 */
 .form { display: grid; gap: 14px }
-.form label { display: grid; gap: 6px; font-weight: 700; font-size: .9rem }
-input, textarea { font: inherit; font-size: 16px; color: var(--fg); background: var(--soft); border: 1px solid transparent; border-radius: 12px; padding: 14px; width: 100% }
+.form label { display: grid; gap: 6px; font-weight: 600; font-size: var(--fs-md) }
+input, textarea { font: inherit; font-size: 16px; font-weight: 400; color: var(--fg); background: var(--soft); border: 1px solid transparent; border-radius: 12px; padding: 14px; width: 100% }
 input:focus, textarea:focus { border-color: var(--fg); outline: none; background: #fff }
 textarea { min-height: 180px; font: 13px/1.5 ui-monospace, Consolas, monospace }
 .seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--soft); border-radius: 12px; padding: 4px }
-.seg button { min-height: 44px; border-radius: 9px; font-weight: 700; color: var(--sub) }
+.seg button { min-height: 44px; border-radius: 9px; font-weight: 600; color: var(--sub) }
 .seg button[aria-pressed="true"] { background: #fff; color: var(--fg); box-shadow: 0 1px 3px rgba(0,0,0,.1) }
 
 /* 기록·루틴 목록 */
-.list-card { background: var(--card); border-radius: var(--radius); padding: 16px 20px; display: grid; gap: 10px }
-.list-card h3 { font-size: 1rem; font-weight: 800 }
+.list-card { background: var(--card); box-shadow: var(--shadow); border-radius: var(--radius); padding: 16px 20px; display: grid; gap: 10px }
+.list-card h3 { font-size: var(--fs-base) }
 .list-card ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px }
-.list-card li { display: flex; justify-content: space-between; gap: 12px; font-size: .92rem }
+.list-card li { display: flex; justify-content: space-between; gap: 12px; font-size: var(--fs-md) }
 .list-card li .r { color: var(--sub); text-align: right; flex: none; max-width: 55% }
-.badge { font-size: .7rem; padding: 2px 7px; border-radius: 999px; background: var(--soft); color: var(--sub); font-weight: 700; margin-left: 4px; white-space: nowrap }
+.badge { font-size: var(--fs-xs); padding: 2px 7px; border-radius: 999px; background: var(--soft); color: var(--sub); font-weight: 600; margin-left: 4px; white-space: nowrap }
 
-footer { color: var(--muted); font-size: .78rem; display: grid; gap: 8px }
+footer { color: var(--muted); font-size: var(--fs-xs); display: grid; gap: 8px }
+
+/* 로그인: 위는 브랜드, 아래는 폼. 원판 4색 막대를 바벨에 끼운 원판 크기 순서로 */
+.login { display: grid; gap: 40px; padding-top: 10vh }
+.brand { display: grid; gap: 8px; text-wrap: pretty }
+.plates { display: flex; align-items: center; gap: 4px; height: 36px; margin-bottom: 8px }
+.plates span { width: 10px; border-radius: 4px }
+.plates span:nth-child(1) { height: 36px; background: var(--lower) }
+.plates span:nth-child(2) { height: 30px; background: var(--upper) }
+.plates span:nth-child(3) { height: 24px; background: var(--core-fill) }
+.plates span:nth-child(4) { height: 18px; background: var(--cardio) }
+.brand h1 { font-size: var(--fs-2xl); font-weight: 800 }
+.switch { text-align: center; font-size: var(--fs-md); color: var(--sub) }
+.link { min-height: 44px; padding: 0 4px; font-weight: 700; color: var(--fg); text-decoration: underline; text-underline-offset: 3px }
+.pw { position: relative; display: block }
+.pw input { padding-right: 52px }
+.pw-toggle { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; display: grid; place-items: center; color: var(--muted); border-radius: 10px }
+.pw-toggle svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+.form label.remember { display: flex; align-items: center; gap: 8px; min-height: 44px; font-weight: 500; color: var(--sub); cursor: pointer }
+.remember input { width: 20px; height: 20px; padding: 0; margin: 0; accent-color: var(--fg); flex: none }

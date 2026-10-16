@@ -7,7 +7,7 @@ import GuideSteps from "./GuideSteps";
 import Sheet from "./Sheet";
 
 const FB: [Feedback, string][] = [["light", "가벼워요"], ["ok", "적당해요"], ["heavy", "무거워요"]];
-const FB_KO: Record<Feedback, string> = { light: "가벼웠음", ok: "적당했음", heavy: "무거웠음" };
+const FB_KO: Record<Feedback, string> = { light: "가벼웠어요", ok: "적당했어요", heavy: "무거웠어요" };
 
 export interface StepProps {
   slot: string;
@@ -133,13 +133,13 @@ export default function WorkoutStep({ slot, item, exId, log, last, recKg, dayIds
 
       {logged.length > 0 && (
         <div className="card tight" style={{ display: "grid", gap: 10 }}>
-          <p style={{ fontWeight: 700 }}>오늘 무게 어땠나요?</p>
+          <p className="card-title">오늘 무게 어땠어요?</p>
           <div className="fb" role="group" aria-label="체감">
             {FB.map(([k, label]) => (
               <button type="button" key={k} aria-pressed={log?.feedback === k} disabled={busy} onClick={() => void act(() => onFeedback(k))}>{label}</button>
             ))}
           </div>
-          <p className="hint">다음 번 추천 무게에 반영됩니다.</p>
+          <p className="hint">다음 번 추천 무게에 반영돼요.</p>
         </div>
       )}
 
@@ -148,7 +148,7 @@ export default function WorkoutStep({ slot, item, exId, log, last, recKg, dayIds
       </Sheet>
 
       <Sheet open={sheet === "alt"} onClose={() => setSheet("")} title="대체 운동 고르기">
-        <p className="hint">기구 자리가 없으면 비슷한 부위를 쓰는 운동으로 바꿔서 하세요.</p>
+        <p className="hint">기구 자리가 없으면 비슷한 부위를 쓰는 운동으로 바꿔서 해요.</p>
         {alts.map(a => isExerciseId(a) && (
           <button type="button" className="alt-opt" key={a} onClick={() => { setSheet(""); onSwap(a); }}>
             <img src={`/img/${EXERCISES[a].img}_0.webp`} alt="" width={56} height={56} />

@@ -34,7 +34,7 @@ export default function App() {
     if (!userId) { setProfile(undefined); setRoutine(null); return; }
     Promise.all([getProfile(), getActiveRoutine()])
       .then(([p, r]) => { setProfile(p); setRoutine(r); })
-      .catch((e: Error) => setError(e.message));
+      .catch(e => { console.error(e); setError("정보를 불러오지 못했어요. 잠시 후 다시 열어 주세요."); });
   }, [userId]);
 
   async function finishOnboarding(p: { gender: "m" | "f"; start_date: string }) {
@@ -45,10 +45,10 @@ export default function App() {
   }
 
   const plain = (children: React.ReactNode) => <div className="screen plain">{children}</div>;
-  if (!configured) return plain(<div className="card"><h2 className="title">Supabase 연결이 필요합니다</h2><p className="sub">.env에 VITE_SUPABASE_URL과 VITE_SUPABASE_ANON_KEY를 넣고 다시 실행하세요.</p></div>);
+  if (!configured) return plain(<div className="card"><h2 className="title">Supabase 연결이 필요해요</h2><p className="sub">.env에 VITE_SUPABASE_URL과 VITE_SUPABASE_ANON_KEY를 넣고 다시 실행해 주세요.</p></div>);
   if (auth === undefined) return plain(<p className="muted">불러오는 중…</p>);
   if (!auth) return plain(<Login />);
-  if (error) return plain(<p className="err">불러오지 못했습니다: {error}</p>);
+  if (error) return plain(<p className="err">{error}</p>);
   if (profile === undefined) return plain(<p className="muted">불러오는 중…</p>);
   if (!profile || !routine) return plain(<Onboarding onDone={finishOnboarding} />);
 

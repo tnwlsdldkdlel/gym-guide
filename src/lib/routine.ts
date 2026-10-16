@@ -58,37 +58,37 @@ const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object
 // AI가 준 JSON은 신뢰할 수 없는 입력이라 저장 전에 전부 검사한다
 export function validateRoutine(input: unknown): Result {
   const errors: string[] = [];
-  if (!isObj(input)) return { ok: false, errors: ["JSON 맨 바깥이 { } 객체가 아닙니다."] };
+  if (!isObj(input)) return { ok: false, errors: ["JSON 맨 바깥이 { } 객체가 아니에요."] };
 
   const items = (v: unknown, where: string): RoutineItem[] => {
-    if (!Array.isArray(v)) { errors.push(`${where}: 운동 목록이 배열 [ ]이 아닙니다.`); return []; }
+    if (!Array.isArray(v)) { errors.push(`${where}: 운동 목록이 배열 [ ]이 아니에요.`); return []; }
     return v.flatMap((it, i): RoutineItem[] => {
       const at = `${where} ${i + 1}번째`;
-      if (!isObj(it)) { errors.push(`${at}: 객체가 아닙니다.`); return []; }
+      if (!isObj(it)) { errors.push(`${at}: 객체가 아니에요.`); return []; }
       const { id, sets, reps, kg, restSec } = it;
       if (typeof id !== "string" || !isExerciseId(id)) { errors.push(`${at}: 앱에 없는 운동 id "${String(id)}"`); return []; }
-      if (!Number.isInteger(sets) || (sets as number) < 1 || (sets as number) > 10) errors.push(`${at}(${id}): sets는 1~10 정수여야 합니다.`);
-      if (typeof reps !== "string" || !/\d/.test(reps)) errors.push(`${at}(${id}): reps는 "12", "30초" 같은 문자열이어야 합니다.`);
-      if (!(kg === null || (typeof kg === "number" && kg >= 0 && kg <= 500))) errors.push(`${at}(${id}): kg는 0~500 숫자 또는 null이어야 합니다.`);
-      if (!Number.isInteger(restSec) || (restSec as number) < 0 || (restSec as number) > 600) errors.push(`${at}(${id}): restSec는 0~600 정수여야 합니다.`);
+      if (!Number.isInteger(sets) || (sets as number) < 1 || (sets as number) > 10) errors.push(`${at}(${id}): sets는 1~10 정수여야 해요.`);
+      if (typeof reps !== "string" || !/\d/.test(reps)) errors.push(`${at}(${id}): reps는 "12", "30초" 같은 문자열이어야 해요.`);
+      if (!(kg === null || (typeof kg === "number" && kg >= 0 && kg <= 500))) errors.push(`${at}(${id}): kg는 0~500 숫자 또는 null이어야 해요.`);
+      if (!Number.isInteger(restSec) || (restSec as number) < 0 || (restSec as number) > 600) errors.push(`${at}(${id}): restSec는 0~600 정수여야 해요.`);
       return [{ id, sets: sets as number, reps: reps as string, kg: kg as number | null, restSec: restSec as number }];
     });
   };
 
   const days: Record<string, RoutineDay> = {};
-  if (!isObj(input.days) || !Object.keys(input.days).length) errors.push("days가 비어 있거나 객체가 아닙니다.");
+  if (!isObj(input.days) || !Object.keys(input.days).length) errors.push("days가 비어 있거나 객체가 아니에요.");
   else for (const [key, d] of Object.entries(input.days)) {
-    if (!isObj(d) || typeof d.title !== "string") { errors.push(`days.${key}: title이 있는 객체여야 합니다.`); continue; }
+    if (!isObj(d) || typeof d.title !== "string") { errors.push(`days.${key}: title이 있는 객체여야 해요.`); continue; }
     days[key] = { title: d.title, items: items(d.items, `days.${key}`), ...(d.pickOne === true && { pickOne: true }) };
   }
 
   const cycle = input.weekdayCycle;
-  if (!Array.isArray(cycle) || !cycle.length || !cycle.every(k => typeof k === "string")) errors.push("weekdayCycle은 날 이름 배열이어야 합니다.");
+  if (!Array.isArray(cycle) || !cycle.length || !cycle.every(k => typeof k === "string")) errors.push("weekdayCycle은 날 이름 배열이어야 해요.");
   const refs = [...(Array.isArray(cycle) ? cycle : []), input.saturday, input.sunday];
-  for (const k of refs) if (typeof k !== "string" || !days[k]) errors.push(`"${String(k)}"는 days에 없는 날입니다.`);
+  for (const k of refs) if (typeof k !== "string" || !days[k]) errors.push(`"${String(k)}"는 days에 없는 날이에요.`);
 
   const core = items(input.core, "core");
-  if (input.note !== undefined && typeof input.note !== "string") errors.push("note는 문자열이어야 합니다.");
+  if (input.note !== undefined && typeof input.note !== "string") errors.push("note는 문자열이어야 해요.");
   if (errors.length) return { ok: false, errors };
   return {
     ok: true,

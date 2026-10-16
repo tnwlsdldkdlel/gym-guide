@@ -48,7 +48,7 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
   useEffect(() => {
     Promise.all([reload(), getLastLogs(Object.keys(EXERCISES), today).then(setLast)])
       .then(() => setLoaded(true))
-      .catch((e: Error) => setErr(e.message));
+      .catch(e => { console.error(e); setErr("오늘 운동을 불러오지 못했어요. 잠시 후 다시 열어 주세요."); });
   }, [reload, today]);
 
   const day = r.days[viewKey]!;
@@ -72,7 +72,7 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
   async function run(fn: () => Promise<unknown>) {
     setErr("");
     try { await fn(); await reload(); }
-    catch (e) { setErr(`저장하지 못했습니다: ${(e as Error).message}`); }
+    catch (e) { console.error(e); setErr("저장하지 못했어요. 잠시 후 다시 눌러 주세요."); }
   }
 
   async function logIdFor(slot: string, exId: string) {
@@ -82,7 +82,7 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
 
   const exIdOf = (e: Entry) => swaps[e.slot] ?? e.item.id;
 
-  if (!loaded) return <div className="screen">{err ? <p className="err">불러오지 못했습니다: {err}</p> : <p className="muted">불러오는 중…</p>}</div>;
+  if (!loaded) return <div className="screen">{err ? <p className="err">{err}</p> : <p className="muted">불러오는 중…</p>}</div>;
 
   if (mode.kind === "workout") {
     const idx = Math.min(mode.idx, flow.length - 1);
@@ -118,7 +118,7 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
             })}
             onFeedback={(fb: Feedback) => run(async () => setFeedback(log?.id ?? (await logIdFor(e.slot, exId)), fb))}
             onSwap={to => {
-              if (log?.set_logs.length) { setErr("이미 세트를 기록한 운동은 바꿀 수 없습니다. 완료를 풀고 바꾸세요."); return; }
+              if (log?.set_logs.length) { setErr("이미 세트를 기록한 운동은 바꿀 수 없어요. 완료를 풀고 바꿔 주세요."); return; }
               setSwaps(s => { const n = { ...s }; if (to === e.item.id) delete n[e.slot]; else n[e.slot] = to; return n; });
             }}
             onRest={sec => setRestEnd(Date.now() + sec * 1000)}
@@ -151,9 +151,9 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
           <div className="stats">
             <div><b>{doneCount}/{flow.length}</b><span>운동</span></div>
             <div><b>{sets.length}</b><span>세트</span></div>
-            <div><b>{Math.round(volume).toLocaleString()}</b><span>총 kg</span></div>
+            <div><b>{Math.round(volume).toLocaleString()}</b><span>총 무게(kg)</span></div>
           </div>
-          <p className="hint">세트마다 고른 체감은 다음 번 추천 무게에 반영됩니다. 루틴을 바꾸고 싶으면 루틴 탭에서 AI에게 물어보세요.</p>
+          <p className="hint">세트마다 고른 체감은 다음 번 추천 무게에 반영돼요. 루틴을 바꾸고 싶으면 루틴 탭에서 AI에게 물어보세요.</p>
         </div>
         <div className="dock no-tab"><div><button type="button" className="btn primary" onClick={() => setMode({ kind: "overview" })}>확인</button></div></div>
       </div>
@@ -183,7 +183,7 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
       <header className="today-head">
         <p className="date">{now.getMonth() + 1}월 {now.getDate()}일 {WEEK_NAMES[now.getDay()]}요일{viewKey !== todayKey ? ` · 오늘은 ${r.days[todayKey]?.title ?? ""}` : ""}</p>
         <h1>{day.title}</h1>
-        <p className="sub">{day.pickOne ? "하나 골라서" : `본운동 ${day.items.length}개`} + 복근 {r.core.length}개 · {doneCount}/{flow.length} 완료</p>
+        <p className="sub">{day.pickOne ? "하나 골라요" : `본운동 ${day.items.length}개`} + 복근 {r.core.length}개 · {doneCount}/{flow.length} 완료</p>
         <div className="progress" aria-hidden="true"><span style={{ width: `${(doneCount / flow.length) * 100}%` }} /></div>
       </header>
 
@@ -199,7 +199,7 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
         })}
       </div>
 
-      <div className="scroll-x" role="group" aria-label="다른 날 운동 하기">
+      <div className="scroll-x" role="group" aria-label="다른 날 운동하기">
         {keys.map(k => (
           <button type="button" key={k} className="chip-btn" aria-pressed={k === viewKey} onClick={() => { setViewKey(k); setPick(null); }}>
             {r.days[k]!.title}{k === todayKey ? " · 오늘" : ""}
@@ -229,7 +229,7 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
       <div className="dock">
         <div>
           {day.pickOne && !chosen
-            ? <button type="button" className="btn primary" disabled>유산소를 하나 고르세요</button>
+            ? <button type="button" className="btn primary" disabled>유산소를 하나 골라요</button>
             : <button type="button" className="btn primary" onClick={() => setMode(nextIdx < 0 ? { kind: "summary" } : { kind: "workout", idx: nextIdx })}>
                 {nextIdx < 0 ? "오늘 운동 요약 보기" : doneCount === 0 && !flow.some(e => statusOf(e) === "part") ? "운동 시작" : `이어서 하기 · ${nextIdx + 1}/${flow.length}`}
               </button>}

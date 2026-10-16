@@ -1,11 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
+import { makeAuthStorage } from "./authStorage";
 import type { Feedback, LastLog } from "./progress";
 import type { LogSummary, Routine } from "./routine";
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 export const configured = Boolean(url && key);
-export const supabase = createClient(url ?? "http://localhost", key ?? "missing");
+export const authStorage = makeAuthStorage(localStorage, sessionStorage);
+export const supabase = createClient(url ?? "http://localhost", key ?? "missing", { auth: { storage: authStorage } });
 
 export interface Profile { id: string; gender: "m" | "f"; start_date: string }
 export interface RoutineRow { id: string; data: Routine; created_at: string }
