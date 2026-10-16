@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { NO_REGION, regionLevels } from "../data/bodyMap";
 import { DEFAULT_ROUTINES } from "../data/defaultRoutines";
+import { EXERCISES } from "../data/exercises";
 import { dayMark, monthCells, parseDate, toISO, weekIndex } from "./dates";
 import { buildAiPrompt, dayKeyFor, dayOrder, extractJson, planText, removeItem, setsText, unitsOf, validateRoutine } from "./routine";
-import { recommendKg } from "./progress";
+import { plannedAt, recommend } from "./progress";
 
 const d = (s: string) => parseDate(s)!;
 const start = d("2026-10-12"); // 월요일
@@ -67,18 +69,36 @@ describe("buildAiPrompt", () => {
   });
 });
 
-describe("recommendKg", () => {
-  const saved = "2026-10-01T00:00:00Z";
-  it("가벼우면 한 단위 올리고 무거우면 내린다", () => {
-    expect(recommendKg({ routineKg: 15, routineSavedAt: saved, step: 2.5, last: { kg: 17.5, feedback: "light", at: "2026-10-12T10:00:00Z" } })).toBe(20);
-    expect(recommendKg({ routineKg: 15, routineSavedAt: saved, step: 2.5, last: { kg: 17.5, feedback: "heavy", at: "2026-10-12T10:00:00Z" } })).toBe(15);
-    expect(recommendKg({ routineKg: 15, routineSavedAt: saved, step: 2.5, last: { kg: 2.5, feedback: "heavy", at: "2026-10-12T10:00:00Z" } })).toBe(2.5);
+describe("recommend", () => {
+  const plan = { kg: 15, reps: "12" };
+  const last = (kg: number | null, reps: number, feedback: "light" | "ok" | "heavy" | null = null) => ({ kg, reps, feedback, at: "2026-10-12T10:00:00Z" });
+  it("루틴 값이 그대로면 지난 무게·횟수를 이어 가고, 무게는 체감으로 한 단위 조정", () => {
+    expect(recommend({ planned: plan, then: plan, step: 2.5, last: last(17.5, 15, "light") })).toEqual({ kg: 20, reps: 15 });
+    expect(recommend({ planned: plan, then: plan, step: 2.5, last: last(17.5, 12, "heavy") })).toEqual({ kg: 15, reps: 12 });
+    expect(recommend({ planned: plan, then: plan, step: 2.5, last: last(2.5, 12, "heavy") }).kg).toBe(2.5);
   });
-  it("루틴을 기록 뒤에 새로 정했으면 루틴 무게를 따른다", () => {
-    expect(recommendKg({ routineKg: 25, routineSavedAt: "2026-10-13T00:00:00Z", step: 2.5, last: { kg: 17.5, feedback: "light", at: "2026-10-12T10:00:00Z" } })).toBe(25);
+  it("기록 뒤에 이 운동의 루틴 값이 바뀌었으면 루틴을 따른다", () => {
+    expect(recommend({ planned: { kg: 25, reps: "10" }, then: plan, step: 2.5, last: last(17.5, 15, "light") })).toEqual({ kg: 25, reps: 10 });
+    expect(recommend({ planned: { kg: 15, reps: "10" }, then: plan, step: 2.5, last: last(17.5, 15) })).toEqual({ kg: 17.5, reps: 10 });
   });
-  it("맨몸 운동은 그대로", () => {
-    expect(recommendKg({ routineKg: null, routineSavedAt: saved })).toBeNull();
+  it("기록이 없거나 그때 루틴에 없던 운동이면 루틴 값", () => {
+    expect(recommend({ planned: plan, step: 2.5 })).toEqual({ kg: 15, reps: 12 });
+    expect(recommend({ planned: plan, then: undefined, step: 2.5, last: last(17.5, 15, "light") })).toEqual({ kg: 15, reps: 12 });
+  });
+  it("맨몸 운동은 무게 없이 횟수만 이어 간다", () => {
+    expect(recommend({ planned: { kg: null, reps: "15" }, then: { kg: null, reps: "15" }, last: last(null, 20) })).toEqual({ kg: null, reps: 20 });
+  });
+});
+
+describe("plannedAt", () => {
+  it("기록 시각 이전의 가장 최근 루틴에서 운동 계획을 찾는다(빼기로 새로 저장해도 계획이 같으면 이어 감)", () => {
+    const a = structuredClone(routine), b = removeItem(routine, "upper", 4)!;
+    const rows = [{ data: a, created_at: "2026-10-10T00:00:00Z" }, { data: b, created_at: "2026-10-13T00:00:00Z" }];
+    const find = (r: typeof routine) => r.days.upper!.items.find(i => i.id === "latpull");
+    expect(plannedAt(rows, "2026-10-12T10:00:00Z", find)).toEqual(a.days.upper!.items[0]);
+    expect(plannedAt(rows, "2026-10-09T00:00:00Z", find)).toBeUndefined();
+    const then = plannedAt(rows, "2026-10-12T10:00:00Z", find)!, now = find(b)!;
+    expect(recommend({ planned: now, then, step: 2.5, last: { kg: 17.5, reps: 12, feedback: "light", at: "2026-10-12T10:00:00Z" } }).kg).toBe(20);
   });
 });
 
@@ -150,5 +170,19 @@ describe("planText", () => {
     expect(planText({ id: "latpull", sets: 3, reps: "12", kg: 15, restSec: 90 })).toBe("15kg × 12회 3세트");
     expect(planText({ id: "plank", sets: 2, reps: "20–30초", kg: null, restSec: 30 })).toBe("20–30초 2세트");
     expect(planText({ id: "treadmill", sets: 1, reps: "30분", kg: null, restSec: 0 })).toBe("30분");
+  });
+});
+
+describe("자극 부위 그림", () => {
+  it("운동 데이터의 모든 부위 이름이 그림 영역에 대응된다(심폐·전신 제외)", () => {
+    const missing = Object.values(EXERCISES).flatMap(e => e.muscles).filter(m => !NO_REGION.includes(m) && !regionLevels([m]).size);
+    expect([...new Set(missing)]).toEqual([]);
+  });
+  it("첫 부위는 주 자극, 나머지는 보조, 겹치면 주 자극 유지", () => {
+    const l = regionLevels(["등(광배근)", "등 가운데", "어깨 뒤", "어깨"]);
+    expect(l.get("upper-back")).toBe(2);
+    expect(l.get("trapezius")).toBe(1);
+    expect(l.get("back-deltoids")).toBe(1);
+    expect(regionLevels(["심폐"]).size).toBe(0);
   });
 });

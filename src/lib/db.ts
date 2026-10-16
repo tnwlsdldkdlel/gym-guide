@@ -32,6 +32,11 @@ export async function getActiveRoutine(): Promise<RoutineRow | null> {
   return must(await supabase.from("routines").select("id, data, created_at").order("created_at", { ascending: false }).limit(1).maybeSingle()) as RoutineRow | null;
 }
 
+/** 지난 루틴들. 기록 당시 계획과 지금 계획을 비교하는 데 쓴다 */
+export async function getRoutines(): Promise<RoutineRow[]> {
+  return must(await supabase.from("routines").select("id, data, created_at").order("created_at", { ascending: false }).limit(100)) as RoutineRow[];
+}
+
 export async function saveRoutine(data: Routine): Promise<RoutineRow> {
   return must(await supabase.from("routines").insert({ data }).select("id, data, created_at").single()) as RoutineRow;
 }
@@ -70,14 +75,14 @@ export async function deleteSet(exerciseLogId: string, setNo: number): Promise<v
 export async function getLastLogs(exerciseIds: string[], beforeDate: string): Promise<Record<string, LastLog>> {
   if (!exerciseIds.length) return {};
   const rows = must(await supabase.from("exercise_logs")
-    .select("exercise_id, feedback, created_at, set_logs(kg), workout_sessions!inner(date)")
+    .select("exercise_id, feedback, created_at, set_logs(kg, reps), workout_sessions!inner(date)")
     .in("exercise_id", exerciseIds).lt("workout_sessions.date", beforeDate)
-    .order("created_at", { ascending: false }).limit(200)) as unknown as { exercise_id: string; feedback: Feedback | null; created_at: string; set_logs: { kg: number | null }[] }[];
+    .order("created_at", { ascending: false }).limit(200)) as unknown as { exercise_id: string; feedback: Feedback | null; created_at: string; set_logs: { kg: number | null; reps: number }[] }[];
   const out: Record<string, LastLog> = {};
   for (const r of rows) {
     if (out[r.exercise_id] || !r.set_logs.length) continue;
     const kgs = r.set_logs.map(s => s.kg).filter((k): k is number => k !== null);
-    out[r.exercise_id] = { kg: kgs.length ? Math.max(...kgs) : null, feedback: r.feedback, at: r.created_at };
+    out[r.exercise_id] = { kg: kgs.length ? Math.max(...kgs) : null, reps: Math.max(...r.set_logs.map(s => s.reps)), feedback: r.feedback, at: r.created_at };
   }
   return out;
 }

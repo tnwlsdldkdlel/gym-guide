@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { ALTERNATIVES, EXERCISES, isExerciseId, type ExerciseId } from "../data/exercises";
 import type { ExerciseLogRow } from "../lib/db";
 import type { Feedback, LastLog } from "../lib/progress";
-import { firstNumber, repsUnit, type RoutineItem } from "../lib/routine";
+import { repsUnit, type RoutineItem } from "../lib/routine";
+import BodyMap from "./BodyMap";
 import GuideSteps from "./GuideSteps";
 import Sheet from "./Sheet";
 
@@ -16,6 +18,8 @@ export interface StepProps {
   log?: ExerciseLogRow;
   last?: LastLog;
   recKg: number | null;
+  /** 미리 채울 횟수. 지난번에 늘렸으면 그 값 */
+  recReps: number;
   /** 같은 날 이미 하는 운동. 대체 후보에서 뺀다 */
   dayIds: string[];
   onSet: (setNo: number, kg: number | null, reps: number, done: boolean) => Promise<void>;
@@ -27,7 +31,7 @@ export interface StepProps {
 type Row = { kg: number | null; reps: number };
 const fmt = (n: number) => String(+n.toFixed(1));
 
-export default function WorkoutStep({ slot, item, exId, log, last, recKg, dayIds, onSet, onFeedback, onSwap, onRest }: StepProps) {
+export default function WorkoutStep({ slot, item, exId, log, last, recKg, recReps, dayIds, onSet, onFeedback, onSwap, onRest }: StepProps) {
   // 루틴은 저장 전에 검증되고 대체 목록도 카탈로그 id라서 exId는 항상 카탈로그에 있다
   const e = EXERCISES[exId as ExerciseId];
   const unit = repsUnit(item.reps);
@@ -37,7 +41,7 @@ export default function WorkoutStep({ slot, item, exId, log, last, recKg, dayIds
 
   const logged = [...(log?.set_logs ?? [])].sort((a, b) => a.set_no - b.set_no);
   const [rows, setRows] = useState<Row[]>(() => {
-    const base = Array.from({ length: Math.max(item.sets, logged.length) }, (): Row => ({ kg: recKg, reps: firstNumber(item.reps) }));
+    const base = Array.from({ length: Math.max(item.sets, logged.length) }, (): Row => ({ kg: recKg, reps: recReps }));
     for (const s of logged) base[s.set_no - 1] = { kg: s.kg === null ? null : Number(s.kg), reps: s.reps };
     return base;
   });
@@ -49,6 +53,27 @@ export default function WorkoutStep({ slot, item, exId, log, last, recKg, dayIds
   const cur = rows.findIndex((_, i) => !done.has(i + 1));
   const shown = open ?? cur;
   const allDone = cur < 0;
+
+  // 펼친 세트 카드는 한 줄 높이(52px)에서 스르륵 펴지고, 접을 때는 다시 한 줄 높이로 줄어든 뒤 바뀐다
+  const cardRef = useRef<HTMLDivElement>(null);
+  const firstRender = useRef(true);
+  const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+  useLayoutEffect(() => {
+    if (firstRender.current) { firstRender.current = false; return; }
+    const el = cardRef.current;
+    if (!el || still()) return;
+    el.style.overflow = "hidden";
+    el.animate([{ height: "52px", opacity: 0.6 }, { height: `${el.offsetHeight}px`, opacity: 1 }], { duration: 240, easing: "cubic-bezier(.22, 1, .36, 1)" })
+      .onfinish = () => { el.style.overflow = ""; };
+  }, [shown]);
+  function openSet(next: number | null) {
+    const el = cardRef.current;
+    if (!el || still()) { setOpen(next); return; }
+    el.style.overflow = "hidden";
+    const a = el.animate([{ height: `${el.offsetHeight}px` }, { height: "52px", opacity: 0.6 }], { duration: 180, easing: "ease-in", fill: "forwards" });
+    // 끝나면 바로 바꿔 그린 뒤 애니메이션을 지운다(같은 카드가 남아도 높이가 고정되지 않게). 창이 뒤에 있으면 finish 이벤트가 늦어서 타이머로 처리
+    setTimeout(() => { flushSync(() => setOpen(next)); a.cancel(); el.style.overflow = ""; }, 180);
+  }
 
   async function act(fn: () => Promise<void>) {
     setBusy(true);
@@ -71,6 +96,23 @@ export default function WorkoutStep({ slot, item, exId, log, last, recKg, dayIds
     if (finishing && item.restSec > 0) onRest(item.restSec);
   }
 
+  // 초 단위 세트(플랭크 등)는 카운트다운이 끝나면 진동 후 그 세트를 자동 완료한다
+  const [timer, setTimer] = useState<{ i: number; end: number } | null>(null);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!timer) return;
+    const t = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(t);
+  }, [timer]);
+  const left = timer ? Math.max(0, Math.ceil((timer.end - now) / 1000)) : 0;
+  useEffect(() => {
+    if (!timer || left > 0) return;
+    navigator.vibrate?.([300, 100, 300]);
+    setTimer(null);
+    toggle(timer.i);
+  }, [left, timer]);
+  const startTimer = (i: number) => { setNow(Date.now()); setTimer({ i, end: Date.now() + rows[i]!.reps * 1000 }); };
+
   const alts = ALTERNATIVES[slot] ? [slot, ...ALTERNATIVES[slot]!].filter(a => a !== exId && (a === slot || !dayIds.includes(a))) : [];
   const swapped = exId !== slot && isExerciseId(slot);
   const kgLabel = swapped ? (e.step ? "가볍게" : "맨몸") : item.kg === null ? "맨몸" : `${e.unit ? `${e.unit} ` : ""}${fmt(item.kg)}kg`;
@@ -82,10 +124,14 @@ export default function WorkoutStep({ slot, item, exId, log, last, recKg, dayIds
   return (
     <>
       <div className="ex-info">
-        {swapped && <p className="swapped">{EXERCISES[slot as ExerciseId].name} 대신 하는 중</p>}
-        <h2>{e.name}</h2>
-        <p className="ex-sum">{kgPhrase}{e.per ? `${e.per} ` : ""}{repsLabel}{item.sets > 1 ? `씩 ${item.sets}세트` : ""}{item.restSec ? `, 쉬는 시간 ${item.restSec}초` : ""}</p>
-        <p className="en">{[e.en, e.gear, ...e.muscles].filter(Boolean).join(" · ")}</p>
+        <div>
+          {swapped && <p className="swapped">{EXERCISES[slot as ExerciseId].name} 대신 하는 중</p>}
+          <h2>{e.name}</h2>
+          <p className="ex-sum">{kgPhrase}{e.per ? `${e.per} ` : ""}{repsLabel}{item.sets > 1 ? `씩 ${item.sets}세트` : ""}{item.restSec ? `, 쉬는 시간 ${item.restSec}초` : ""}</p>
+          <p className="muscles"><b>{e.muscles[0]}</b>{e.muscles.length > 1 ? `, ${e.muscles.slice(1).join(", ")}` : ""}</p>
+          <p className="en">{[e.en, e.gear].filter(Boolean).join(", ")}</p>
+        </div>
+        <BodyMap muscles={e.muscles} />
       </div>
 
       <figure className="fig" aria-label={`${e.name} 시작 자세와 끝 자세`}>
@@ -109,7 +155,7 @@ export default function WorkoutStep({ slot, item, exId, log, last, recKg, dayIds
         {rows.map((r, i) => {
           const isDone = done.has(i + 1);
           if (i !== shown) return (
-            <button type="button" className={`set-line${isDone ? " done" : ""}`} key={i} onClick={() => setOpen(i)}>
+            <button type="button" className={`set-line${isDone ? " done" : ""}`} key={i} onClick={() => openSet(i)}>
               <span className="set-no" aria-hidden="true">{isDone ? "✓" : i + 1}</span>
               <span>{i + 1}세트{isDone ? " 완료" : ""}</span>
               <b>{amount(r)}</b>
@@ -117,10 +163,10 @@ export default function WorkoutStep({ slot, item, exId, log, last, recKg, dayIds
             </button>
           );
           return (
-            <div className={`set-card${isDone ? " done" : ""}`} key={i}>
+            <div className={`set-card${isDone ? " done" : ""}`} key={i} ref={cardRef}>
               <div className="set-card-head">
                 <span>{i === cur ? `지금 ${i + 1}세트` : `${i + 1}세트${isDone ? " 완료" : ""}`}</span>
-                {open !== null && <button type="button" className="link" onClick={() => setOpen(null)}>접기</button>}
+                {open !== null && <button type="button" className="link" onClick={() => openSet(null)}>접기</button>}
               </div>
               <div className="set-steppers">
                 {useKg && (
@@ -136,9 +182,22 @@ export default function WorkoutStep({ slot, item, exId, log, last, recKg, dayIds
                   <button type="button" aria-label={`${i + 1}세트 늘리기`} onClick={() => change(i, { reps: r.reps + repStep })}>+</button>
                 </div>
               </div>
-              <button type="button" className={`btn ${isDone ? "secondary" : "go"}`} aria-pressed={isDone} disabled={busy} onClick={() => toggle(i)}>
-                {isDone ? "완료 취소" : `${i + 1}세트 완료`}
-              </button>
+              {timer?.i === i ? (
+                <div className="countdown" role="timer" aria-live="off">
+                  <b>{left}초</b>
+                  <button type="button" className="btn small secondary" onClick={() => setTimer(null)}>그만</button>
+                  <button type="button" className="btn small secondary" onClick={() => { setTimer(null); toggle(i); }}>바로 완료</button>
+                </div>
+              ) : !isDone && unit === "초" ? (
+                <div className="set-actions">
+                  <button type="button" className="btn go" disabled={busy} onClick={() => startTimer(i)}>{r.reps}초 시작</button>
+                  <button type="button" className="btn secondary" disabled={busy} onClick={() => toggle(i)}>완료</button>
+                </div>
+              ) : (
+                <button type="button" className={`btn ${isDone ? "secondary" : "go"}`} aria-pressed={isDone} disabled={busy} onClick={() => toggle(i)}>
+                  {isDone ? "완료 취소" : `${i + 1}세트 완료`}
+                </button>
+              )}
             </div>
           );
         })}

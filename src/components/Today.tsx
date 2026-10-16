@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EXERCISES, isExerciseId, type ExerciseId } from "../data/exercises";
 import { addDays, mondayOf, parseDate, toISO, WEEK_NAMES } from "../lib/dates";
-import { deleteSet, ensureExerciseLog, ensureSession, getLastLogs, getSession, saveSet, setFeedback, type Profile, type RoutineRow, type SessionRow } from "../lib/db";
-import { recommendKg, type Feedback, type LastLog } from "../lib/progress";
+import { deleteSet, ensureExerciseLog, ensureSession, getLastLogs, getRoutines, getSession, saveSet, setFeedback, type Profile, type RoutineRow, type SessionRow } from "../lib/db";
+import { plannedAt, recommend, type Feedback, type LastLog } from "../lib/progress";
 import { dayKeyFor, dayOrder, planText, repsUnit, setsText, type RoutineItem } from "../lib/routine";
 import { FB } from "./History";
 import RestTimer from "./RestTimer";
@@ -27,6 +27,7 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
   const [viewKey, setViewKey] = useState(r.days[todayKey] ? todayKey : keys[0]!);
   const [session, setSession] = useState<SessionRow | null>(null);
   const [last, setLast] = useState<Record<string, LastLog>>({});
+  const [routines, setRoutines] = useState<RoutineRow[]>([]);
   const [swaps, setSwaps] = useState<Record<string, string>>({});
   const [pick, setPick] = useState<string | null>(null);
   // 이번 주 요일 칸 중 고른 칸(월=0). 같은 종류 날이 여러 번 있어 날 종류가 아니라 칸으로 표시한다
@@ -49,7 +50,7 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
   }, [today]);
 
   useEffect(() => {
-    Promise.all([reload(), getLastLogs(Object.keys(EXERCISES), today).then(setLast)])
+    Promise.all([reload(), getLastLogs(Object.keys(EXERCISES), today).then(setLast), getRoutines().then(setRoutines)])
       .then(() => setLoaded(true))
       .catch(e => { console.error(e); setErr("오늘 운동을 불러오지 못했어요. 잠시 후 다시 열어 주세요."); });
   }, [reload, today]);
@@ -74,6 +75,20 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
 
   useEffect(() => { overlay.current?.scrollTo({ top: 0 }); }, [mode]);
 
+  // 운동 중엔 휴식·카운트다운 동안 화면이 꺼지지 않게 한다. 탭을 벗어나면 브라우저가 풀어서 돌아올 때 다시 잡는다
+  const working = mode.kind === "workout";
+  useEffect(() => {
+    if (!working || !("wakeLock" in navigator)) return;
+    let lock: WakeLockSentinel | null = null, gone = false;
+    const get = () => {
+      if (document.visibilityState !== "visible") return;
+      navigator.wakeLock.request("screen").then(l => { if (gone) void l.release(); else lock = l; }).catch(() => {});
+    };
+    get();
+    document.addEventListener("visibilitychange", get);
+    return () => { gone = true; document.removeEventListener("visibilitychange", get); void lock?.release(); };
+  }, [working]);
+
   async function run(fn: () => Promise<unknown>) {
     setErr("");
     try { await fn(); await reload(); }
@@ -97,7 +112,11 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
     const ex = isExerciseId(exId) ? EXERCISES[exId] : undefined;
     // 대체 운동은 루틴 무게가 없으니 그 운동의 지난 기록을 쓰고, 없으면 가장 가벼운 한 단위에서 시작
     const baseKg = ex?.step === undefined ? null : exId === e.item.id ? e.item.kg ?? ex.step : ex.step;
-    const recKg = recommendKg({ routineKg: baseKg, routineSavedAt: exId === e.item.id ? routine.created_at : "", last: last[exId], step: ex?.step });
+    // 대체 운동은 루틴 계획이 없으니 지난 기록을 그대로 이어 간다
+    const planned = { kg: baseKg, reps: e.item.reps };
+    const isCore = e.slot.startsWith("core:");
+    const then = exId !== e.item.id ? planned : last[exId] && plannedAt(routines, last[exId]!.at, r => (isCore ? r.core : Object.values(r.days).flatMap(d => d.items)).find(i => i.id === e.item.id));
+    const rec = recommend({ planned, then, last: last[exId], step: ex?.step });
     const dayIds = day.items.flatMap(i => [i.id, swaps[i.id] ?? i.id]);
     const isLast = idx === flow.length - 1;
     const exDone = (log?.set_logs.length ?? 0) >= e.item.sets;
@@ -116,7 +135,7 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
           <WorkoutStep
             key={`${e.slot}:${exId}`}
             slot={e.slot.startsWith("core:") ? e.item.id : e.slot}
-            item={e.item} exId={exId} log={log} last={last[exId]} recKg={recKg}
+            item={e.item} exId={exId} log={log} last={last[exId]} recKg={rec.kg} recReps={rec.reps}
             dayIds={e.slot.startsWith("core:") ? [] : dayIds}
             onSet={(setNo, kg, reps, done) => run(async () => {
               const id = log?.id ?? (await logIdFor(e.slot, exId));

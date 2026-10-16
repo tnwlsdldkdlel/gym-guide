@@ -36,9 +36,11 @@ button:disabled { opacity: .4; cursor: default }
 /* 아래 탭 바 */
 .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: var(--card); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px) }
 .tabbar nav { max-width: 480px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); height: var(--tabbar-h) }
-.tabbar button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: var(--fs-xs); font-weight: 600; color: var(--muted) }
-.tabbar svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
-.tabbar button[aria-current="page"] { color: var(--fg) }
+/* 비활성은 옅은 회색, 활성은 진한 색·굵은 선과 글자로 대비를 크게(상태는 aria-current로도 전달) */
+.tabbar button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: var(--fs-xs); font-weight: 500; color: #a3abb5 }
+.tabbar svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round }
+.tabbar button[aria-current="page"] { color: var(--fg); font-weight: 700 }
+.tabbar button[aria-current="page"] svg { stroke-width: 2.5 }
 
 /* 아래 고정 버튼 영역 */
 .dock { position: fixed; left: 0; right: 0; z-index: 9; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px)); padding: 12px max(20px, env(safe-area-inset-right, 0px)) 12px max(20px, env(safe-area-inset-left, 0px)); background: linear-gradient(to bottom, transparent, var(--bg) 30%) }
@@ -112,7 +114,13 @@ button:disabled { opacity: .4; cursor: default }
   .fig .f2 { animation: none }
 }
 
-.ex-info { display: grid; gap: 6px }
+.ex-info { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start }
+.ex-info > div:first-child { display: grid; gap: 4px; min-width: 0 }
+.ex-info .muscles { font-size: var(--fs-sm); color: var(--sub) }
+.ex-info .muscles b { color: var(--c); font-weight: 700 }
+.body-map { display: flex; gap: 2px }
+.body-map svg { width: 46px; height: 92px }
+.body-map polygon { stroke: #fff; stroke-width: .6 }
 .ex-info h2 { font-size: var(--fs-xl) }
 .ex-info .en { color: var(--muted); font-size: var(--fs-sm) }
 .ex-sum { font-size: var(--fs-md); color: var(--sub); font-weight: 600 }
@@ -144,6 +152,16 @@ button:disabled { opacity: .4; cursor: default }
 /* 아래에서 올라오는 창 */
 dialog.sheet { margin: auto auto 0; width: 100%; max-width: 480px; max-height: 88dvh; border: 0; padding: 0; border-radius: 20px 20px 0 0; background: var(--card); color: var(--fg) }
 dialog.sheet::backdrop { background: rgba(0,0,0,.45) }
+/* 열 때 아래에서 스르륵, 닫을 때 다시 내려감(.closing은 Sheet.tsx가 220ms 동안 붙인다) */
+dialog.sheet[open] { animation: sheet-up .3s cubic-bezier(.22, 1, .36, 1) }
+dialog.sheet[open]::backdrop { animation: fade-in .3s ease }
+dialog.sheet.closing { animation: sheet-down .22s ease-in forwards }
+dialog.sheet.closing::backdrop { animation: fade-out .22s ease-in forwards }
+@keyframes sheet-up { from { transform: translateY(100%) } }
+@keyframes sheet-down { to { transform: translateY(100%) } }
+@keyframes fade-in { from { opacity: 0 } }
+@keyframes fade-out { to { opacity: 0 } }
+@media (prefers-reduced-motion: reduce) { dialog.sheet[open], dialog.sheet[open]::backdrop { animation: none } }
 .sheet-in { padding: 12px 20px calc(20px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 14px }
 .grabber { width: 40px; height: 5px; border-radius: 99px; background: var(--line); margin: 0 auto }
 .sheet-head { display: flex; justify-content: space-between; align-items: center }
@@ -257,3 +275,6 @@ footer { color: var(--muted); font-size: var(--fs-xs); display: grid; gap: 8px }
 .sum-list.plain li { grid-template-columns: 1fr auto }
 .sec-head h2 small { font-size: var(--fs-sm); color: var(--sub); font-weight: 600; margin-left: 4px }
 .sec-head .link { min-height: 32px; font-size: var(--fs-md) }
+.set-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px }
+.countdown { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 8px; min-height: 52px }
+.countdown b { font-size: var(--fs-2xl); font-weight: 800; color: var(--c) }

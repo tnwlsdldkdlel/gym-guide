@@ -15,11 +15,14 @@ const TABS: { key: Page; label: string; icon: React.ReactNode }[] = [
   { key: "routine", label: "루틴", icon: <><path d="M9 5h10M9 12h10M9 19h10" /><circle cx="5" cy="5" r="1" /><circle cx="5" cy="12" r="1" /><circle cx="5" cy="19" r="1" /></> },
 ];
 
+const pathOf = (p: Page) => (p === "today" ? "/" : `/${p}`);
+
 export default function App() {
   const [auth, setAuth] = useState<Session | null | undefined>(undefined);
   const [profile, setProfile] = useState<Profile | null | undefined>(undefined);
   const [routine, setRoutine] = useState<RoutineRow | null>(null);
-  const [page, setPage] = useState<Page>("today");
+  // 새로고침해도 보던 탭이 유지되게 탭을 경로(/history 등)로 둔다. 탭 3개뿐이라 라우터 라이브러리 없이 History API로 처리
+  const [page, setPage] = useState<Page>(() => TABS.find(t => pathOf(t.key) === location.pathname)?.key ?? "today");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -60,7 +63,7 @@ export default function App() {
       <div className="tabbar">
         <nav aria-label="메뉴">
           {TABS.map(t => (
-            <button type="button" key={t.key} aria-current={page === t.key ? "page" : undefined} onClick={() => { setPage(t.key); window.scrollTo({ top: 0 }); }}>
+            <button type="button" key={t.key} aria-current={page === t.key ? "page" : undefined} onClick={() => { setPage(t.key); history.replaceState(null, "", pathOf(t.key)); window.scrollTo({ top: 0 }); }}>
               <svg viewBox="0 0 24 24" aria-hidden="true">{t.icon}</svg>
               {t.label}
             </button>
