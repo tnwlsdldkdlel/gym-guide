@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { makeAuthStorage } from "./authStorage";
 import type { Feedback, LastLog } from "./progress";
-import type { LogSummary, Routine } from "./routine";
+import type { LogSummary, StoredRoutine } from "./routine";
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -10,7 +10,8 @@ export const authStorage = makeAuthStorage(localStorage, sessionStorage);
 export const supabase = createClient(url ?? "http://localhost", key ?? "missing", { auth: { storage: authStorage } });
 
 export interface Profile { id: string; gender: "m" | "f"; start_date: string }
-export interface RoutineRow { id: string; data: Routine; created_at: string }
+/** RLS로 내 루틴과 연결된 배우자 루틴이 함께 보인다. 가장 최근 행이 공용 루틴 */
+export interface RoutineRow { id: string; user_id: string; data: StoredRoutine; created_at: string }
 export interface SetRow { id: string; set_no: number; kg: number | null; reps: number }
 export interface ExerciseLogRow { id: string; slot_id: string; exercise_id: string; feedback: Feedback | null; created_at: string; set_logs: SetRow[] }
 export interface SessionRow { id: string; date: string; day_key: string; day_title: string; exercise_logs: ExerciseLogRow[] }
@@ -29,16 +30,16 @@ export async function saveProfile(p: { gender: "m" | "f"; start_date: string }):
 }
 
 export async function getActiveRoutine(): Promise<RoutineRow | null> {
-  return must(await supabase.from("routines").select("id, data, created_at").order("created_at", { ascending: false }).limit(1).maybeSingle()) as RoutineRow | null;
+  return must(await supabase.from("routines").select("id, user_id, data, created_at").order("created_at", { ascending: false }).limit(1).maybeSingle()) as RoutineRow | null;
 }
 
 /** 지난 루틴들. 기록 당시 계획과 지금 계획을 비교하는 데 쓴다 */
 export async function getRoutines(): Promise<RoutineRow[]> {
-  return must(await supabase.from("routines").select("id, data, created_at").order("created_at", { ascending: false }).limit(100)) as RoutineRow[];
+  return must(await supabase.from("routines").select("id, user_id, data, created_at").order("created_at", { ascending: false }).limit(100)) as RoutineRow[];
 }
 
-export async function saveRoutine(data: Routine): Promise<RoutineRow> {
-  return must(await supabase.from("routines").insert({ data }).select("id, data, created_at").single()) as RoutineRow;
+export async function saveRoutine(data: StoredRoutine): Promise<RoutineRow> {
+  return must(await supabase.from("routines").insert({ data }).select("id, user_id, data, created_at").single()) as RoutineRow;
 }
 
 const SESSION_SELECT = "id, date, day_key, day_title, exercise_logs(id, slot_id, exercise_id, feedback, created_at, set_logs(id, set_no, kg, reps))";
@@ -102,4 +103,15 @@ export function toSummaries(sessions: SessionRow[]): LogSummary[] {
       sets: [...e.set_logs].sort((a, b) => a.set_no - b.set_no).map(x => ({ kg: x.kg === null ? null : Number(x.kg), reps: x.reps })),
     })),
   })).filter(s => s.exercises.length);
+}
+
+export async function getMemo(exerciseId: string): Promise<string> {
+  const row = must(await supabase.from("exercise_memos").select("memo").eq("exercise_id", exerciseId).maybeSingle()) as { memo: string } | null;
+  return row?.memo ?? "";
+}
+
+/** 빈 메모는 행을 지운다(테이블이 빈 문자열을 받지 않는다) */
+export async function saveMemo(exerciseId: string, memo: string | null): Promise<void> {
+  if (memo === null) must(await supabase.from("exercise_memos").delete().eq("exercise_id", exerciseId));
+  else must(await supabase.from("exercise_memos").upsert({ exercise_id: exerciseId, memo, updated_at: new Date().toISOString() }, { onConflict: "user_id,exercise_id" }));
 }

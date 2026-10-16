@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { NO_REGION, regionLevels } from "../data/bodyMap";
-import { DEFAULT_ROUTINES } from "../data/defaultRoutines";
-import { EXERCISES } from "../data/exercises";
+import { DEFAULT_ROUTINE, DEFAULT_ROUTINES } from "../data/defaultRoutines";
+import { ALTERNATIVES, EXERCISES } from "../data/exercises";
 import { dayMark, monthCells, parseDate, toISO, weekIndex } from "./dates";
-import { buildAiPrompt, dayKeyFor, dayOrder, extractJson, planText, removeItem, setsText, unitsOf, validateRoutine } from "./routine";
+import { bestSeries, buildAiPrompt, cleanMemo, coreFor, equipLabel, forGender, hasLegacyKg, mergeShared, parseTodayView, dayKeyFor, dayOrder, extractJson, planText, removeItem, setsText, unitsOf, validateRoutine } from "./routine";
 import { plannedAt, recommend } from "./progress";
 
 const d = (s: string) => parseDate(s)!;
@@ -103,7 +103,7 @@ describe("plannedAt", () => {
 });
 
 describe("운동 개수 규칙", () => {
-  it("본운동이 4~5개를 벗어나거나 복근이 2개가 아니면 알려 준다", () => {
+  it("본운동이 4~5개를 벗어나거나 복근 후보가 2~6개를 벗어나면 알려 준다", () => {
     const bad = structuredClone(routine);
     bad.days.upper!.items.push(bad.days.lower!.items[0]!);
     bad.days.lower!.items = bad.days.lower!.items.slice(0, 3);
@@ -113,8 +113,26 @@ describe("운동 개수 규칙", () => {
     if (!r.ok) {
       expect(r.errors.join("\n")).toMatch(/days\.upper: 본운동은 4~5개/);
       expect(r.errors.join("\n")).toMatch(/days\.lower: 본운동은 4~5개/);
-      expect(r.errors.join("\n")).toMatch(/core: 복근은 2개/);
+      expect(r.errors.join("\n")).toMatch(/core: 복근 후보는 2~6개/);
     }
+  });
+});
+
+describe("coreFor", () => {
+  it("복근 후보 6개를 하루 2개씩 시작일부터 돌린다", () => {
+    const ids = (s: string) => coreFor(routine, start, d(s)).map(i => i.id);
+    const pool = routine.core.map(i => i.id);
+    expect(ids("2026-10-12")).toEqual(pool.slice(0, 2));
+    expect(ids("2026-10-13")).toEqual(pool.slice(2, 4));
+    expect(ids("2026-10-14")).toEqual(pool.slice(4, 6));
+    expect(ids("2026-10-15")).toEqual(pool.slice(0, 2));
+    expect(ids("2026-10-01")).toEqual(pool.slice(0, 2)); // 시작 전
+  });
+  it("후보가 홀수면 끝에서 처음으로 이어 붙이고, 2개면 매일 같다", () => {
+    const five = { ...routine, core: routine.core.slice(0, 5) };
+    expect(coreFor(five, start, d("2026-10-14")).map(i => i.id)).toEqual([five.core[4]!.id, five.core[0]!.id]);
+    const two = { ...routine, core: routine.core.slice(0, 2) };
+    expect(coreFor(two, start, d("2026-10-14"))).toEqual(two.core);
   });
 });
 
@@ -122,14 +140,115 @@ describe("removeItem", () => {
   it("본운동·복근에서 하나를 빼고 원본은 그대로 둔다", () => {
     const next = removeItem(routine, "upper", 0)!;
     expect(next.days.upper!.items.map(i => i.id)).toEqual(routine.days.upper!.items.slice(1).map(i => i.id));
-    expect(removeItem(routine, null, 1)!.core.map(i => i.id)).toEqual([routine.core[0]!.id]);
+    expect(removeItem(routine, null, 1)!.core.map(i => i.id)).toEqual(routine.core.filter((_, n) => n !== 1).map(i => i.id));
     expect(routine.days.upper!.items).toHaveLength(5);
   });
-  it("마지막 하나나 없는 날·번호는 빼지 않는다", () => {
-    const one = removeItem(routine, null, 0)!;
-    expect(removeItem(one, null, 0)).toBeNull();
+  it("본운동 마지막 하나, 복근 후보 2개 이하, 없는 날·번호는 빼지 않는다", () => {
+    const two = { ...routine, core: routine.core.slice(0, 2) };
+    expect(removeItem(two, null, 0)).toBeNull();
     expect(removeItem(routine, "swim", 0)).toBeNull();
     expect(removeItem(routine, "upper", 9)).toBeNull();
+  });
+});
+
+describe("공용 루틴(무게 남녀 따로)", () => {
+  it("기본 공용 루틴은 검증을 통과하고, 성별로 풀면 원래 남녀 기본 루틴과 같다", () => {
+    const v = validateRoutine(JSON.parse(JSON.stringify(DEFAULT_ROUTINE)));
+    expect(v.ok).toBe(true);
+    const { note: _m, ...m } = forGender(DEFAULT_ROUTINE, "m"), { note: _mm, ...mm } = DEFAULT_ROUTINES.m;
+    expect(m).toEqual(mm);
+    // 여자 쪽은 무게만 여자 기본값을 쓴다(횟수·세트는 공용)
+    const kgs = (r: typeof DEFAULT_ROUTINES.f) => [...r.core, ...Object.values(r.days).flatMap(d => d.items)].map(i => i.kg);
+    expect(kgs(forGender(DEFAULT_ROUTINE, "f"))).toEqual(kgs(DEFAULT_ROUTINES.f));
+  });
+  it("예전 숫자 kg는 둘 다 같은 값, {m,f}가 아니거나 범위 밖이면 거부", () => {
+    expect(forGender(routine, "m").days.upper!.items[0]!.kg).toBe(routine.days.upper!.items[0]!.kg);
+    const bad = (kg: unknown) => { const r = structuredClone(DEFAULT_ROUTINE) as { days: Record<string, { items: { kg: unknown }[] }> }; r.days.upper!.items[0]!.kg = kg; return validateRoutine(r).ok; };
+    expect(bad({ m: 30, f: 15 })).toBe(true);
+    expect(bad({ m: 30 })).toBe(false);
+    expect(bad({ m: 30, f: -1 })).toBe(false);
+    expect(bad({ m: 30, f: 15, x: 1 })).toBe(false);
+  });
+});
+
+describe("각자 루틴 → 공용 루틴 합치기", () => {
+  it("구성은 최근 루틴, 무게는 각자 루틴에서 같은 운동 값, 없으면 최근 루틴 값", () => {
+    const wife = structuredClone(DEFAULT_ROUTINES.f), husband = structuredClone(DEFAULT_ROUTINES.m);
+    husband.days.upper!.items[4] = { id: "curl", sets: 3, reps: "12", kg: 8, restSec: 60 }; // 남편이 레터럴 대신 컬로 바꾼 최신 루틴
+    expect(hasLegacyKg(wife)).toBe(true);
+    const shared = mergeShared(husband, wife, husband, "f");
+    expect(hasLegacyKg(shared)).toBe(false);
+    expect(shared.days.upper!.items.map(i => i.id)).toEqual(husband.days.upper!.items.map(i => i.id));
+    expect(shared.days.upper!.items[0]!.kg).toEqual({ m: 30, f: 15 }); // 랫 풀다운: 각자 값
+    expect(shared.days.upper!.items[4]!.kg).toEqual({ m: 8, f: 8 }); // 컬: 아내 루틴에 없어 최근 값
+    expect(hasLegacyKg(DEFAULT_ROUTINE)).toBe(false);
+  });
+});
+
+describe("equipLabel·대체 운동", () => {
+  it("복근 운동마다 복근 대체 운동이 하나 이상", () => {
+    for (const [id, e] of Object.entries(EXERCISES).filter(([, e]) => e.kind === "core")) {
+      const alts = ALTERNATIVES[id] ?? [];
+      expect(alts.length, `${id}(${e.name})`).toBeGreaterThan(0);
+      expect(alts.every(a => EXERCISES[a as keyof typeof EXERCISES].kind === "core")).toBe(true);
+    }
+  });
+  it("모든 운동은 시작·끝 사진 파일이 있다", () => {
+    const files = new Set(Object.keys(import.meta.glob("/public/img/*.webp")));
+    const missing = Object.values(EXERCISES).flatMap(e => [0, 1].map(n => `/public/img/${e.img}_${n}.webp`)).filter(f => !files.has(f));
+    expect(missing).toEqual([]);
+  });
+  it("무게 단위 없으면 맨몸, 덤벨 표기면 덤벨, 나머지는 기구", () => {
+    expect(["bridge", "pushup", "goblet", "bench", "dbrow", "latpull", "rdl"].map(id => equipLabel(EXERCISES[id as keyof typeof EXERCISES])))
+      .toEqual(["맨몸", "맨몸", "덤벨", "덤벨", "덤벨", "기구", "기구"]);
+  });
+  it("대체 운동은 모두 카탈로그에 있고 자기 자신이 아니며, 근력 운동마다 덤벨·맨몸 대안이 하나 이상", () => {
+    for (const [id, alts] of Object.entries(ALTERNATIVES)) {
+      for (const a of alts!) { expect(a in EXERCISES).toBe(true); expect(a).not.toBe(id); }
+    }
+    const strength = Object.entries(EXERCISES).filter(([, e]) => e.kind === "strength");
+    for (const [id, e] of strength) {
+      const pool = [id, ...(ALTERNATIVES[id] ?? [])].map(a => equipLabel(EXERCISES[a as keyof typeof EXERCISES]));
+      expect(pool.some(l => l !== "기구"), `${id}(${e.name})`).toBe(true);
+    }
+  });
+});
+
+describe("parseTodayView", () => {
+  const saved = { date: "2026-10-16", routineId: "r1", mode: { kind: "workout", idx: 2 }, viewKey: "upper", sel: 4, pick: null, swaps: { latpull: "row" } };
+  const parse = (o: object, today = "2026-10-16") => parseTodayView(JSON.stringify(o), today, "r1", routine);
+  it("같은 날·같은 루틴이면 운동 중 위치를 되살린다", () => {
+    expect(parse(saved)).toEqual({ mode: { kind: "workout", idx: 2 }, viewKey: "upper", sel: 4, pick: null, swaps: { latpull: "row" } });
+  });
+  it("다른 날·다른 루틴·깨진 값·쉬는 날 운동 중이면 null", () => {
+    expect(parse(saved, "2026-10-17")).toBeNull();
+    expect(parse({ ...saved, routineId: "r2" })).toBeNull();
+    expect(parseTodayView("{", "2026-10-16", "r1", routine)).toBeNull();
+    expect(parseTodayView(null, "2026-10-16", "r1", routine)).toBeNull();
+    expect(parse({ ...saved, swaps: { latpull: "없는운동" } })).toBeNull();
+    expect(parse({ ...saved, viewKey: "rest" })).toBeNull();
+    expect(parse({ ...saved, viewKey: "rest", mode: { kind: "overview" } })).not.toBeNull();
+  });
+});
+
+describe("cleanMemo", () => {
+  it("공백·줄바꿈을 한 칸으로, 앞뒤는 자르고, 비면 null", () => {
+    expect(cleanMemo("  의자 4번,\n 핀  5칸 ")).toBe("의자 4번, 핀 5칸");
+    expect(cleanMemo(" \n ")).toBeNull();
+  });
+  it("100자에서 자른다", () => {
+    expect(cleanMemo("가".repeat(120))).toHaveLength(100);
+  });
+});
+
+describe("bestSeries", () => {
+  const log = (date: string, id: string, sets: { kg: number | null; reps: number }[]) => ({ date, dayTitle: "", exercises: [{ id, sets, feedback: null }] });
+  it("날짜별 최고 무게를 오래된 날부터, 다른 운동은 빼고", () => {
+    const logs = [log("2026-10-16", "a", [{ kg: 20, reps: 10 }, { kg: 22.5, reps: 8 }]), log("2026-10-15", "b", [{ kg: 50, reps: 10 }]), log("2026-10-14", "a", [{ kg: 20, reps: 12 }])];
+    expect(bestSeries(logs, "a")).toEqual({ byKg: true, points: [{ date: "2026-10-14", value: 20 }, { date: "2026-10-16", value: 22.5 }] });
+  });
+  it("무게 기록이 없으면 최고 횟수", () => {
+    expect(bestSeries([log("2026-10-14", "p", [{ kg: null, reps: 30 }, { kg: null, reps: 40 }])], "p")).toEqual({ byKg: false, points: [{ date: "2026-10-14", value: 40 }] });
   });
 });
 

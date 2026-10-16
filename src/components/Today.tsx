@@ -3,10 +3,11 @@ import { EXERCISES, isExerciseId, type ExerciseId } from "../data/exercises";
 import { addDays, mondayOf, parseDate, toISO, WEEK_NAMES } from "../lib/dates";
 import { deleteSet, ensureExerciseLog, ensureSession, getLastLogs, getRoutines, getSession, saveSet, setFeedback, type Profile, type RoutineRow, type SessionRow } from "../lib/db";
 import { plannedAt, recommend, type Feedback, type LastLog } from "../lib/progress";
-import { dayKeyFor, dayOrder, planText, repsUnit, setsText, type RoutineItem } from "../lib/routine";
+import { coreFor, dayKeyFor, dayOrder, forGender, hasLegacyKg, parseTodayView, planText, repsUnit, setsText, type Routine, type RoutineItem, type TodayMode as Mode } from "../lib/routine";
 import { FB } from "./History";
 import RestTimer from "./RestTimer";
 import WorkoutStep from "./WorkoutStep";
+import Skeleton from "./Skeleton";
 
 export const dayColor = (key: string) =>
   ({ upper: "var(--upper)", lower: "var(--lower)", cardio: "var(--cardio)", rest: "var(--core)" })[key] ?? "var(--upper)";
@@ -15,24 +16,29 @@ export const dayColor = (key: string) =>
 const coreSlot = (id: string) => `core:${id}`;
 
 type Entry = { slot: string; item: RoutineItem };
-type Mode = { kind: "overview" } | { kind: "workout"; idx: number } | { kind: "summary" };
+// 새로고침해도 보던 화면(운동 중 위치 등)을 유지한다. 탭을 닫으면 사라져도 되는 값이라 sessionStorage
+const VIEW_KEY = "today-view";
 
 export default function Today({ profile, routine }: { profile: Profile; routine: RoutineRow }) {
-  const r = routine.data;
+  const r = forGender(routine.data, profile.gender);
   const start = parseDate(profile.start_date) ?? new Date();
   const now = new Date();
   const today = toISO(now);
   const todayKey = dayKeyFor(r, start, now);
   const keys = dayOrder(r);
-  const [viewKey, setViewKey] = useState(r.days[todayKey] ? todayKey : keys[0]!);
+  const [saved] = useState(() => { try { return parseTodayView(sessionStorage.getItem(VIEW_KEY), today, routine.id, r); } catch { return null; } });
+  const [viewKey, setViewKey] = useState(saved?.viewKey ?? (r.days[todayKey] ? todayKey : keys[0]!));
   const [session, setSession] = useState<SessionRow | null>(null);
   const [last, setLast] = useState<Record<string, LastLog>>({});
-  const [routines, setRoutines] = useState<RoutineRow[]>([]);
-  const [swaps, setSwaps] = useState<Record<string, string>>({});
-  const [pick, setPick] = useState<string | null>(null);
+  const [routines, setRoutines] = useState<{ data: Routine; created_at: string }[]>([]);
+  const [swaps, setSwaps] = useState<Record<string, string>>(saved?.swaps ?? {});
+  const [pick, setPick] = useState<string | null>(saved?.pick ?? null);
   // 이번 주 요일 칸 중 고른 칸(월=0). 같은 종류 날이 여러 번 있어 날 종류가 아니라 칸으로 표시한다
-  const [sel, setSel] = useState((now.getDay() + 6) % 7);
-  const [mode, setMode] = useState<Mode>({ kind: "overview" });
+  const [sel, setSel] = useState(saved?.sel ?? (now.getDay() + 6) % 7);
+  const [mode, setMode] = useState<Mode>(saved?.mode ?? { kind: "overview" });
+  useEffect(() => {
+    try { sessionStorage.setItem(VIEW_KEY, JSON.stringify({ date: today, routineId: routine.id, mode, viewKey, sel, pick, swaps })); } catch { /* 저장 못 해도 화면은 그대로 쓴다 */ }
+  }, [today, routine.id, mode, viewKey, sel, pick, swaps]);
   const [restEnd, setRestEnd] = useState<number | null>(null);
   const [err, setErr] = useState("");
   // 세트 칸은 처음 그릴 때 기록·추천 무게로 채우므로, 둘 다 받은 뒤에 그린다
@@ -50,7 +56,10 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
   }, [today]);
 
   useEffect(() => {
-    Promise.all([reload(), getLastLogs(Object.keys(EXERCISES), today).then(setLast), getRoutines().then(setRoutines)])
+    Promise.all([reload(), getLastLogs(Object.keys(EXERCISES), today).then(setLast), getRoutines().then(rs => setRoutines(rs
+      // 배우자의 예전 형식 루틴은 상대 무게라서, 기록 당시 계획을 찾을 때 섞지 않는다
+      .filter(x => x.user_id === profile.id || !hasLegacyKg(x.data))
+      .map(x => ({ ...x, data: forGender(x.data, profile.gender) }))))])
       .then(() => setLoaded(true))
       .catch(e => { console.error(e); setErr("오늘 운동을 불러오지 못했어요. 잠시 후 다시 열어 주세요."); });
   }, [reload, today]);
@@ -64,7 +73,11 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
   const mainEntries: Entry[] = day.items.filter(i => !day.pickOne || i.id === chosen).map(item => ({ slot: item.id, item }));
   // 쉬는 날(본운동이 없는 날)은 복근도 하지 않는다
   const restDay = day.items.length === 0;
-  const flow: Entry[] = restDay ? [] : [...mainEntries, ...r.core.map(item => ({ slot: coreSlot(item.id), item }))];
+  const mon = mondayOf(now);
+  const shown = addDays(mon, sel);
+  // 복근은 후보 중 고른 날짜 몫 2개만
+  const coreToday = coreFor(r, start, shown);
+  const flow: Entry[] = restDay ? [] : [...mainEntries, ...coreToday.map(item => ({ slot: coreSlot(item.id), item }))];
 
   const logOf = (slot: string) => session?.exercise_logs.find(l => l.slot_id === slot);
   const statusOf = (e: Entry) => {
@@ -102,7 +115,7 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
 
   const exIdOf = (e: Entry) => swaps[e.slot] ?? e.item.id;
 
-  if (!loaded) return <div className="screen">{err ? <p className="err">{err}</p> : <p className="muted">불러오는 중…</p>}</div>;
+  if (!loaded) return <div className="screen">{err ? <p className="err">{err}</p> : <Skeleton />}</div>;
 
   if (mode.kind === "workout") {
     const idx = Math.min(mode.idx, flow.length - 1);
@@ -136,7 +149,8 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
             key={`${e.slot}:${exId}`}
             slot={e.slot.startsWith("core:") ? e.item.id : e.slot}
             item={e.item} exId={exId} log={log} last={last[exId]} recKg={rec.kg} recReps={rec.reps}
-            dayIds={e.slot.startsWith("core:") ? [] : dayIds}
+            // 같은 날 이미 하는 운동은 대체 후보에서 뺀다(복근은 그날 복근끼리)
+            dayIds={e.slot.startsWith("core:") ? coreToday.flatMap(i => [i.id, swaps[coreSlot(i.id)] ?? i.id]) : dayIds}
             onSet={(setNo, kg, reps, done) => run(async () => {
               const id = log?.id ?? (await logIdFor(e.slot, exId));
               await (done ? saveSet(id, setNo, kg, reps) : deleteSet(id, setNo));
@@ -213,7 +227,6 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
   }
 
   const nextIdx = flow.findIndex(e => statusOf(e) !== "done");
-  const mon = mondayOf(now);
   const row = (e: Entry, n: number, onClick: () => void, pickable = false) => {
     const exId = exIdOf(e);
     const ex = EXERCISES[exId as ExerciseId];
@@ -234,10 +247,10 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
   return (
     <div className="screen" style={{ "--c": c } as React.CSSProperties}>
       <header className="today-head">
-        <p className="date">{now.getMonth() + 1}월 {now.getDate()}일 {WEEK_NAMES[now.getDay()]}요일{viewKey !== todayKey ? `, 오늘은 ${r.days[todayKey]?.title ?? ""}` : ""}</p>
-        <h1>{day.title}</h1>
+        <p className="date">{shown.getMonth() + 1}월 {shown.getDate()}일 {WEEK_NAMES[shown.getDay()]}요일</p>
+        <h1><span className="lead">{toISO(shown) === today ? "오늘" : `${WEEK_NAMES[shown.getDay()]}요일`}은 </span>{restDay ? "쉬어요" : `${day.title.replace(/날$/, "")} 운동`}</h1>
         {restDay
-          ? <p className="sub">운동 없이 쉬어요</p>
+          ? null
           : <>
               <p className="sub">운동 {flow.length}개 중 {doneCount}개 완료</p>
               <div className="progress" aria-hidden="true"><span style={{ width: `${(doneCount / flow.length) * 100}%` }} /></div>
@@ -246,7 +259,7 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
           {Array.from({ length: 7 }, (_, o) => {
             const d = addDays(mon, o), k = dayKeyFor(r, start, d);
             return (
-              <button type="button" key={o} className={toISO(d) === today ? "today" : ""} aria-pressed={o === sel} disabled={!r.days[k]}
+              <button type="button" key={o} className={toISO(d) === today ? "today" : ""} aria-current={toISO(d) === today ? "date" : undefined} aria-pressed={o === sel} disabled={!r.days[k]}
                 onClick={() => { setSel(o); setViewKey(k); setPick(null); }}>
                 <b>{WEEK_NAMES[d.getDay()]}</b>
                 <span style={{ color: dayColor(k) }}>{r.days[k]?.title.replace(/날$/, "") ?? k}</span>
@@ -281,7 +294,7 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
         </div>
       ) : (
         <section className="sec">
-          <div className="sec-head"><h2>복근 <span>{r.core.length}</span></h2><small>쉬는 날 빼고 매일</small></div>
+          <div className="sec-head"><h2>복근 <span>{coreToday.length}</span></h2><small>{r.core.length > coreToday.length ? "날마다 바뀌어요" : "쉬는 날 빼고 매일"}</small></div>
           <div className="ex-list">
           {flow.slice(mainEntries.length).map((e, n) => row(e, n, () => setMode({ kind: "workout", idx: mainEntries.length + n })))}
           </div>

@@ -23,6 +23,7 @@
  * SOFTWARE.
  */
 
+// 그림 데이터의 "abductors"(앞)·"adductor"(뒤)는 둘 다 허벅지 안쪽 자리라, 엉덩이 옆은 gluteal로 그린다
 export type Region = "chest" | "obliques" | "abs" | "biceps" | "triceps" | "neck" | "front-deltoids" | "head" | "abductors" | "quadriceps" | "knees" | "calves" | "forearm" | "trapezius" | "back-deltoids" | "upper-back" | "lower-back" | "gluteal" | "adductor" | "hamstring" | "left-soleus" | "right-soleus";
 
 type Shape = [Region, string[]];
@@ -58,6 +59,9 @@ const REGIONS: Record<string, Region[]> = {
   "허벅지 앞": ["quadriceps"],
   "허벅지 뒤": ["hamstring"],
   "종아리": ["calves", "left-soleus", "right-soleus"],
+  "승모근": ["trapezius"],
+  "허벅지 안쪽": ["adductor", "abductors"],
+  "엉덩이 옆": ["gluteal"],
 };
 export const NO_REGION = ["심폐", "전신"];
 

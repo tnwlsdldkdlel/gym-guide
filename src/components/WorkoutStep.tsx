@@ -1,12 +1,15 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { ALTERNATIVES, EXERCISES, isExerciseId, type ExerciseId } from "../data/exercises";
-import type { ExerciseLogRow } from "../lib/db";
+import { ALTERNATIVES, EXERCISES, isExerciseId, type Exercise, type ExerciseId } from "../data/exercises";
+import { getMemo, saveMemo, type ExerciseLogRow } from "../lib/db";
 import type { Feedback, LastLog } from "../lib/progress";
-import { repsUnit, type RoutineItem } from "../lib/routine";
+import { cleanMemo, equipLabel, MEMO_MAX, repsUnit, type RoutineItem } from "../lib/routine";
 import BodyMap from "./BodyMap";
 import GuideSteps from "./GuideSteps";
 import Sheet from "./Sheet";
+
+// "덤벨, 덤벨"처럼 겹치지 않게, 장비 설명에 구분이 이미 들어 있으면 설명만 쓴다
+const gearText = (x: Exercise) => { const l = equipLabel(x); return x.gear?.includes(l) ? x.gear : [l, x.gear].filter(Boolean).join(", "); };
 
 const FB: [Feedback, string][] = [["light", "가벼워요"], ["ok", "적당해요"], ["heavy", "무거워요"]];
 const FB_KO: Record<Feedback, string> = { light: "가벼웠어요", ok: "적당했어요", heavy: "무거웠어요" };
@@ -45,7 +48,16 @@ export default function WorkoutStep({ slot, item, exId, log, last, recKg, recRep
     for (const s of logged) base[s.set_no - 1] = { kg: s.kg === null ? null : Number(s.kg), reps: s.reps };
     return base;
   });
-  const [sheet, setSheet] = useState<"" | "guide" | "alt">("");
+  const [sheet, setSheet] = useState<"" | "guide" | "alt" | "memo">("");
+  const [memo, setMemo] = useState("");
+  const [draft, setDraft] = useState("");
+  const [memoErr, setMemoErr] = useState("");
+  useEffect(() => { getMemo(exId).then(setMemo).catch(console.error); }, [exId]);
+  async function submitMemo() {
+    const next = cleanMemo(draft);
+    try { await saveMemo(exId, next); setMemo(next ?? ""); setSheet(""); }
+    catch (err) { console.error(err); setMemoErr("저장하지 못했어요. 잠시 후 다시 눌러 주세요."); }
+  }
   const [busy, setBusy] = useState(false);
   // 펼쳐 볼 세트. null이면 아직 안 한 첫 세트를 펼친다
   const [open, setOpen] = useState<number | null>(null);
@@ -141,7 +153,7 @@ export default function WorkoutStep({ slot, item, exId, log, last, recKg, recRep
 
       <div className="links">
         <button type="button" className="link" onClick={() => setSheet("guide")}>자세 단계별로 보기</button>
-        {alts.length > 0 && <button type="button" className="link" onClick={() => setSheet("alt")}>자리가 없으면 다른 운동으로</button>}
+        {alts.length > 0 && <button type="button" className="link" onClick={() => setSheet("alt")}>{e.kind === "core" ? "다른 복근 운동으로" : "자리가 없으면 다른 운동으로"}</button>}
       </div>
 
       {last && (
@@ -150,6 +162,15 @@ export default function WorkoutStep({ slot, item, exId, log, last, recKg, recRep
           {useKg && recKg !== last.kg ? `. 오늘은 ${fmt(recKg)}kg을 추천해요` : ""}
         </p>
       )}
+
+      {/* 기구를 맞추는 첫 세트 직전에 눈이 가는 자리라 세트 카드 바로 위에 둔다 */}
+      <button type="button" className={`memo-box${memo ? "" : " empty"}`} aria-label={memo ? `기구 메모: ${memo}. 눌러서 고치기` : "기구 세팅 메모하기"}
+        onClick={() => { setDraft(memo); setMemoErr(""); setSheet("memo"); }}>
+        {memo
+          ? <><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z" /></svg><span>{memo}</span></>
+          : <span>기구 세팅 메모하기</span>}
+        <svg className="edit" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" /></svg>
+      </button>
 
       <div className="sets">
         {rows.map((r, i) => {
@@ -225,12 +246,21 @@ export default function WorkoutStep({ slot, item, exId, log, last, recKg, recRep
         <GuideSteps exercise={e} onDone={() => setSheet("")} />
       </Sheet>
 
+      <Sheet open={sheet === "memo"} onClose={() => setSheet("")} title={`${e.name} 기구 메모`}>
+        <form className="memo-form" onSubmit={ev => { ev.preventDefault(); void submitMemo(); }}>
+          <input value={draft} onChange={ev => setDraft(ev.target.value)} maxLength={MEMO_MAX} placeholder="예: 의자 4번, 핀 5칸" aria-label="기구 메모" autoFocus />
+          <p className="hint">다음에 이 운동을 할 때 이름 아래에 보여요. 비우고 저장하면 지워져요.</p>
+          {memoErr && <p className="err">{memoErr}</p>}
+          <button type="submit" className="btn primary">저장</button>
+        </form>
+      </Sheet>
+
       <Sheet open={sheet === "alt"} onClose={() => setSheet("")} title="대체 운동 고르기">
-        <p className="hint">기구 자리가 없으면 비슷한 부위를 쓰는 운동으로 바꿔서 해요.</p>
+        <p className="hint">{e.kind === "core" ? "하기 어렵거나 지루하면 비슷한 복근 운동으로 바꿔서 해요." : "기구 자리가 없으면 비슷한 부위를 쓰는 운동으로 바꿔서 해요."}</p>
         {alts.map(a => isExerciseId(a) && (
           <button type="button" className="alt-opt" key={a} onClick={() => { setSheet(""); onSwap(a); }}>
             <img src={`/img/${EXERCISES[a].img}_0.webp`} alt="" width={56} height={56} />
-            <span><b>{a === slot ? "원래대로: " : ""}{EXERCISES[a].name}</b><small>{EXERCISES[a].gear ?? "원래 운동"}</small></span>
+            <span><b>{a === slot ? "원래대로: " : ""}{EXERCISES[a].name}</b><small>{gearText(EXERCISES[a])}</small></span>
           </button>
         ))}
       </Sheet>

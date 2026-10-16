@@ -1,4 +1,4 @@
-import type { Routine } from "../lib/routine";
+import type { Routine, StoredRoutine } from "../lib/routine";
 
 // 성별별 첫 루틴. 이후 변경은 AI와 상의해서 붙여 넣은 루틴이 DB에 쌓인다
 export const DEFAULT_ROUTINES: Record<"m" | "f", Routine> = {
@@ -24,6 +24,34 @@ export const DEFAULT_ROUTINES: Record<"m" | "f", Routine> = {
         "reps": "한쪽 10회",
         "kg": null,
         "restSec": 30
+      },
+      {
+        "id": "crunch",
+        "sets": 2,
+        "reps": "15",
+        "kg": null,
+        "restSec": 30
+      },
+      {
+        "id": "sideplank",
+        "sets": 2,
+        "reps": "한쪽 20초",
+        "kg": null,
+        "restSec": 30
+      },
+      {
+        "id": "revcrunch",
+        "sets": 2,
+        "reps": "12",
+        "kg": null,
+        "restSec": 30
+      },
+      {
+        "id": "bicycle",
+        "sets": 2,
+        "reps": "한쪽 10회",
+        "kg": null,
+        "restSec": 30
       }
     ],
     "days": {
@@ -38,10 +66,10 @@ export const DEFAULT_ROUTINES: Record<"m" | "f", Routine> = {
             "restSec": 90
           },
           {
-            "id": "row",
+            "id": "dbrow",
             "sets": 3,
             "reps": "12",
-            "kg": 30,
+            "kg": 10,
             "restSec": 90
           },
           {
@@ -85,10 +113,10 @@ export const DEFAULT_ROUTINES: Record<"m" | "f", Routine> = {
             "restSec": 90
           },
           {
-            "id": "rdl",
+            "id": "dbrdl",
             "sets": 3,
             "reps": "12",
-            "kg": 30,
+            "kg": 10,
             "restSec": 120
           },
           {
@@ -155,6 +183,34 @@ export const DEFAULT_ROUTINES: Record<"m" | "f", Routine> = {
         "reps": "한쪽 8–10회",
         "kg": null,
         "restSec": 30
+      },
+      {
+        "id": "crunch",
+        "sets": 2,
+        "reps": "12",
+        "kg": null,
+        "restSec": 30
+      },
+      {
+        "id": "sideplank",
+        "sets": 2,
+        "reps": "한쪽 15초",
+        "kg": null,
+        "restSec": 30
+      },
+      {
+        "id": "revcrunch",
+        "sets": 2,
+        "reps": "10",
+        "kg": null,
+        "restSec": 30
+      },
+      {
+        "id": "bicycle",
+        "sets": 2,
+        "reps": "한쪽 8회",
+        "kg": null,
+        "restSec": 30
       }
     ],
     "days": {
@@ -169,10 +225,10 @@ export const DEFAULT_ROUTINES: Record<"m" | "f", Routine> = {
             "restSec": 90
           },
           {
-            "id": "row",
+            "id": "dbrow",
             "sets": 3,
             "reps": "12",
-            "kg": 15,
+            "kg": 5,
             "restSec": 90
           },
           {
@@ -216,10 +272,10 @@ export const DEFAULT_ROUTINES: Record<"m" | "f", Routine> = {
             "restSec": 90
           },
           {
-            "id": "rdl",
+            "id": "dbrdl",
             "sets": 3,
             "reps": "12",
-            "kg": 15,
+            "kg": 5,
             "restSec": 120
           },
           {
@@ -264,4 +320,13 @@ export const DEFAULT_ROUTINES: Record<"m" | "f", Routine> = {
       }
     }
   }
+};
+
+// 부부 공용 첫 루틴. 남녀 루틴은 구성이 같고 무게만 달라서 무게를 {m, f}로 합친다
+const both = (m: Routine["core"], f: Routine["core"]) => m.map((i, n) => ({ ...i, kg: { m: i.kg, f: f[n]!.kg } }));
+export const DEFAULT_ROUTINE: StoredRoutine = {
+  ...DEFAULT_ROUTINES.m,
+  note: "처음 시작하는 부부 기준 기본 루틴",
+  core: both(DEFAULT_ROUTINES.m.core, DEFAULT_ROUTINES.f.core),
+  days: Object.fromEntries(Object.entries(DEFAULT_ROUTINES.m.days).map(([k, d]) => [k, { ...d, items: both(d.items, DEFAULT_ROUTINES.f.days[k]!.items) }])),
 };

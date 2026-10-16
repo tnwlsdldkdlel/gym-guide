@@ -61,13 +61,14 @@ button:disabled { opacity: .4; cursor: default }
 /* 오늘 화면: 날 색을 옅게 깐 머리 블록 + 8px 띠로 나눈 섹션 */
 .today-head { display: grid; gap: 4px; padding: 20px 16px 12px; border-radius: 20px; background: color-mix(in srgb, var(--c) 8%, #fff) }
 .today-head .date { font-size: var(--fs-md); color: var(--sub); font-weight: 600 }
+.today-head h1 .lead { color: var(--sub); font-weight: 700 }
 .today-head h1 { font-size: var(--fs-2xl); font-weight: 800; color: var(--c) }
 .progress { height: 8px; border-radius: 99px; background: rgba(0,0,0,.08); overflow: hidden; margin-top: 8px }
 .progress span { display: block; height: 100%; background: var(--c); border-radius: inherit; transition: width .3s }
 .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; margin-top: 12px }
 .week button { min-height: 48px; padding: 6px 0; border-radius: 12px; font-size: var(--fs-xs); line-height: 1.4; min-width: 0; font-weight: 700 }
 .week b { display: block; font-size: var(--fs-sm); font-weight: 600; color: var(--sub) }
-.week .today b { color: var(--fg); font-weight: 800 }
+.week .today b { color: var(--fg); font-weight: 800; font-size: var(--fs-md) }
 .week button[aria-pressed="true"] { background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.12) }
 
 .sec { display: grid; gap: 8px }
@@ -164,7 +165,7 @@ dialog.sheet.closing::backdrop { animation: fade-out .22s ease-in forwards }
 @media (prefers-reduced-motion: reduce) { dialog.sheet[open], dialog.sheet[open]::backdrop { animation: none } }
 .sheet-in { padding: 12px 20px calc(20px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 14px }
 .grabber { width: 40px; height: 5px; border-radius: 99px; background: var(--line); margin: 0 auto }
-.sheet-head { display: flex; justify-content: space-between; align-items: center }
+.sheet-head { display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1; background: var(--card); margin: 0 -20px; padding: 4px 20px }
 .sheet-head h3 { font-size: var(--fs-lg) }
 .step-card { min-height: 180px; display: grid; align-content: start; gap: 10px; background: var(--soft); border-radius: var(--radius); padding: 20px }
 .step-card .kicker { font-size: var(--fs-sm); font-weight: 700; color: var(--sub) }
@@ -211,6 +212,10 @@ dialog.sheet.closing::backdrop { animation: fade-out .22s ease-in forwards }
 input, textarea { font: inherit; font-size: 16px; font-weight: 400; color: var(--fg); background: var(--soft); border: 1px solid transparent; border-radius: 12px; padding: 14px; width: 100% }
 input:focus, textarea:focus { border-color: var(--fg); outline: none; background: #fff }
 textarea { min-height: 180px; font: 13px/1.5 ui-monospace, Consolas, monospace }
+.copy-box { position: relative }
+.copy-box textarea { padding-right: 52px }
+.copy-box .icon-btn { position: absolute; top: 4px; right: 4px; color: var(--sub) }
+.copy-box svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round }
 .seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--soft); border-radius: 12px; padding: 4px }
 .seg button { min-height: 44px; border-radius: 9px; font-weight: 600; color: var(--sub) }
 .seg button[aria-pressed="true"] { background: #fff; color: var(--fg); box-shadow: 0 1px 3px rgba(0,0,0,.1) }
@@ -273,8 +278,23 @@ footer { color: var(--muted); font-size: var(--fs-xs); display: grid; gap: 8px }
 .day-log-head h2 { font-size: var(--fs-lg) }
 .day-chip { font-size: var(--fs-sm); font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap }
 .sum-list.plain li { grid-template-columns: 1fr auto }
+.sum-list.plain li:has(> .log-row) { display: block }
+.log-row { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; width: 100%; min-height: 52px; text-align: left }
+.log-row .chev { color: var(--muted); font-size: var(--fs-lg) }
+.chart { display: grid; gap: 8px }
+.chart svg { width: 100%; height: auto; overflow: visible }
+.chart text { font-size: 12px; fill: var(--sub) }
 .sec-head h2 small { font-size: var(--fs-sm); color: var(--sub); font-weight: 600; margin-left: 4px }
 .sec-head .link { min-height: 32px; font-size: var(--fs-md) }
 .set-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px }
 .countdown { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 8px; min-height: 52px }
 .countdown b { font-size: var(--fs-2xl); font-weight: 800; color: var(--c) }
+.skel-wrap { display: grid; gap: 12px }
+.skel { display: block; border-radius: 12px; background: var(--line); animation: skel-pulse 1.2s ease-in-out infinite }
+@keyframes skel-pulse { 50% { opacity: .45 } }
+@media (prefers-reduced-motion: reduce) { .skel { animation: none } }
+.memo-box { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; min-height: 52px; padding: 0 14px; border-radius: 14px; background: var(--soft); text-align: left; font-size: var(--fs-base); font-weight: 600; color: var(--fg) }
+.memo-box.empty { grid-template-columns: 1fr auto; background: none; border: 1.5px dashed color-mix(in srgb, var(--muted) 45%, #fff); color: var(--sub); font-size: var(--fs-md) }
+.memo-box svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round }
+.memo-box .edit { width: 18px; height: 18px; color: var(--muted) }
+.memo-form { display: grid; gap: 10px }

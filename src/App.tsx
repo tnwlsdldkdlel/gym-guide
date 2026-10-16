@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { DEFAULT_ROUTINES } from "./data/defaultRoutines";
-import { configured, getActiveRoutine, getProfile, saveProfile, saveRoutine, supabase, type Profile, type RoutineRow } from "./lib/db";
+import { DEFAULT_ROUTINE } from "./data/defaultRoutines";
+import { configured, getActiveRoutine, getProfile, getRoutines, saveProfile, saveRoutine, supabase, type Profile, type RoutineRow } from "./lib/db";
+import { hasLegacyKg, mergeShared, type Gender } from "./lib/routine";
 import Login from "./components/Login";
 import Onboarding from "./components/Onboarding";
 import Today from "./components/Today";
 import History from "./components/History";
 import RoutinePage from "./components/RoutinePage";
+import Skeleton from "./components/Skeleton";
 
 type Page = "today" | "history" | "routine";
 const TABS: { key: Page; label: string; icon: React.ReactNode }[] = [
@@ -16,6 +18,15 @@ const TABS: { key: Page; label: string; icon: React.ReactNode }[] = [
 ];
 
 const pathOf = (p: Page) => (p === "today" ? "/" : `/${p}`);
+
+// 배우자와 연결된 뒤 처음 열면, 각자 쓰던 예전 형식 루틴 둘을 공용 루틴 하나로 합쳐 저장한다(한 번만)
+async function toShared(userId: string, gender: Gender, active: RoutineRow): Promise<RoutineRow> {
+  if (!hasLegacyKg(active.data)) return active;
+  const rows = await getRoutines();
+  const mine = rows.find(x => x.user_id === userId), partner = rows.find(x => x.user_id !== userId);
+  if (!mine || !partner) return active;
+  return saveRoutine(mergeShared(active.data, mine.data, partner.data, gender));
+}
 
 export default function App() {
   const [auth, setAuth] = useState<Session | null | undefined>(undefined);
@@ -36,23 +47,23 @@ export default function App() {
   useEffect(() => {
     if (!userId) { setProfile(undefined); setRoutine(null); return; }
     Promise.all([getProfile(), getActiveRoutine()])
-      .then(([p, r]) => { setProfile(p); setRoutine(r); })
+      .then(async ([p, r]) => { const shared = p && r ? await toShared(userId, p.gender, r) : r; setProfile(p); setRoutine(shared); })
       .catch(e => { console.error(e); setError("정보를 불러오지 못했어요. 잠시 후 다시 열어 주세요."); });
   }, [userId]);
 
   async function finishOnboarding(p: { gender: "m" | "f"; start_date: string }) {
     await saveProfile(p);
-    const r = routine ?? (await saveRoutine(DEFAULT_ROUTINES[p.gender]));
+    const r = routine ?? (await saveRoutine(DEFAULT_ROUTINE));
     setRoutine(r);
     setProfile(await getProfile());
   }
 
   const plain = (children: React.ReactNode) => <div className="screen plain">{children}</div>;
   if (!configured) return plain(<div className="card"><h2 className="title">Supabase 연결이 필요해요</h2><p className="sub">.env에 VITE_SUPABASE_URL과 VITE_SUPABASE_ANON_KEY를 넣고 다시 실행해 주세요.</p></div>);
-  if (auth === undefined) return plain(<p className="muted">불러오는 중…</p>);
+  if (auth === undefined) return plain(<Skeleton />);
   if (!auth) return plain(<Login />);
   if (error) return plain(<p className="err">{error}</p>);
-  if (profile === undefined) return plain(<p className="muted">불러오는 중…</p>);
+  if (profile === undefined) return plain(<Skeleton />);
   if (!profile || !routine) return plain(<Onboarding onDone={finishOnboarding} />);
 
   return (
