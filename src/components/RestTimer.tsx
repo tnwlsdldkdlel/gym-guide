@@ -12,9 +12,9 @@ export default function RestTimer({ end, onAdd, onClose }: { end: number; onAdd:
   }, [left]);
 
   return (
-    <div className="timer" role="timer" aria-live="off">
-      <div className="wrap">
-        <span>{left ? "쉬는 시간" : "다음 세트 시작!"}</span>
+    <div className="rest" role="timer">
+      <div>
+        <span>{left ? "쉬는 시간" : "다음 세트!"}</span>
         <b>{Math.floor(left / 60)}:{String(left % 60).padStart(2, "0")}</b>
         <span style={{ display: "flex", gap: 6 }}>
           {left > 0 && <button type="button" onClick={() => onAdd(15)}>+15초</button>}

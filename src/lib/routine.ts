@@ -37,6 +37,12 @@ export function dayKeyFor(routine: Routine, start: Date, date: Date): string {
   return routine.weekdayCycle[n % routine.weekdayCycle.length] ?? routine.sunday;
 }
 
+/** jsonb는 키 순서를 바꿔 저장하므로, 화면에서는 주간 일정에 나오는 순서로 정렬한다 */
+export function dayOrder(routine: Routine): string[] {
+  const order = [...new Set([...routine.weekdayCycle, routine.saturday, routine.sunday])];
+  return [...order, ...Object.keys(routine.days).filter(k => !order.includes(k))].filter(k => routine.days[k]);
+}
+
 export function firstNumber(reps: string): number {
   return Number(/\d+/.exec(reps)?.[0] ?? 0);
 }

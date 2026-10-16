@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
-import { EXERCISES, isExerciseId } from "../data/exercises";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { EXERCISES, isExerciseId, type ExerciseId } from "../data/exercises";
 import { addDays, mondayOf, parseDate, toISO, WEEK_NAMES } from "../lib/dates";
 import { deleteSet, ensureExerciseLog, ensureSession, getLastLogs, getSession, saveSet, setFeedback, type Profile, type RoutineRow, type SessionRow } from "../lib/db";
 import { recommendKg, type Feedback, type LastLog } from "../lib/progress";
-import { dayKeyFor, type RoutineItem } from "../lib/routine";
-import ExerciseCard from "./ExerciseCard";
+import { dayKeyFor, dayOrder, type RoutineItem } from "../lib/routine";
 import RestTimer from "./RestTimer";
+import WorkoutStep from "./WorkoutStep";
 
 export const dayColor = (key: string) =>
   ({ upper: "var(--upper)", lower: "var(--lower)", cardio: "var(--cardio)", rest: "var(--core)" })[key] ?? "var(--upper)";
@@ -13,21 +13,27 @@ export const dayColor = (key: string) =>
 // 복근은 같은 운동이 본운동에 있어도 따로 기록되게 슬롯 이름을 구분
 const coreSlot = (id: string) => `core:${id}`;
 
+type Entry = { slot: string; item: RoutineItem };
+type Mode = { kind: "overview" } | { kind: "workout"; idx: number } | { kind: "summary" };
+
 export default function Today({ profile, routine }: { profile: Profile; routine: RoutineRow }) {
   const r = routine.data;
   const start = parseDate(profile.start_date) ?? new Date();
   const now = new Date();
   const today = toISO(now);
   const todayKey = dayKeyFor(r, start, now);
-  const keys = Object.keys(r.days);
+  const keys = dayOrder(r);
   const [viewKey, setViewKey] = useState(r.days[todayKey] ? todayKey : keys[0]!);
   const [session, setSession] = useState<SessionRow | null>(null);
   const [last, setLast] = useState<Record<string, LastLog>>({});
   const [swaps, setSwaps] = useState<Record<string, string>>({});
+  const [pick, setPick] = useState<string | null>(null);
+  const [mode, setMode] = useState<Mode>({ kind: "overview" });
   const [restEnd, setRestEnd] = useState<number | null>(null);
   const [err, setErr] = useState("");
-  // 카드의 세트 칸은 처음 그릴 때 기록·추천 무게로 채우므로, 둘 다 받은 뒤에 그린다
+  // 세트 칸은 처음 그릴 때 기록·추천 무게로 채우므로, 둘 다 받은 뒤에 그린다
   const [loaded, setLoaded] = useState(false);
+  const overlay = useRef<HTMLDivElement>(null);
 
   const reload = useCallback(async () => {
     const s = await getSession(today);
@@ -48,6 +54,21 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
   const day = r.days[viewKey]!;
   const c = dayColor(viewKey);
 
+  // 유산소처럼 하나만 고르는 날은 이미 기록한 것을 고른 것으로 본다
+  const loggedPick = day.pickOne ? day.items.find(i => session?.exercise_logs.some(l => l.slot_id === i.id && l.set_logs.length))?.id : undefined;
+  const chosen = pick ?? loggedPick ?? null;
+  const mainEntries: Entry[] = day.items.filter(i => !day.pickOne || i.id === chosen).map(item => ({ slot: item.id, item }));
+  const flow: Entry[] = [...mainEntries, ...r.core.map(item => ({ slot: coreSlot(item.id), item }))];
+
+  const logOf = (slot: string) => session?.exercise_logs.find(l => l.slot_id === slot);
+  const statusOf = (e: Entry) => {
+    const n = logOf(e.slot)?.set_logs.length ?? 0;
+    return n >= e.item.sets ? "done" : n > 0 ? "part" : "";
+  };
+  const doneCount = flow.filter(e => statusOf(e) === "done").length;
+
+  useEffect(() => { overlay.current?.scrollTo({ top: 0 }); }, [mode]);
+
   async function run(fn: () => Promise<unknown>) {
     setErr("");
     try { await fn(); await reload(); }
@@ -59,46 +80,112 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
     return ensureExerciseLog(sid, slot, exId);
   }
 
-  function card(item: RoutineItem, slot: string, no: number | undefined, dayIds: string[]) {
-    const exId = swaps[slot] ?? item.id;
-    const log = session?.exercise_logs.find(l => l.slot_id === slot);
-    // 대체 운동은 루틴 무게가 없으니 그 운동의 지난 기록을 쓰고, 없으면 가장 가벼운 한 단위에서 시작
+  const exIdOf = (e: Entry) => swaps[e.slot] ?? e.item.id;
+
+  if (!loaded) return <div className="screen">{err ? <p className="err">불러오지 못했습니다: {err}</p> : <p className="muted">불러오는 중…</p>}</div>;
+
+  if (mode.kind === "workout") {
+    const idx = Math.min(mode.idx, flow.length - 1);
+    const e = flow[idx]!;
+    const exId = exIdOf(e);
+    const log = logOf(e.slot);
     const ex = isExerciseId(exId) ? EXERCISES[exId] : undefined;
-    const baseKg = ex?.step === undefined ? null : exId === item.id ? item.kg ?? ex.step : ex.step;
-    const recKg = recommendKg({ routineKg: baseKg, routineSavedAt: exId === item.id ? routine.created_at : "", last: last[exId], step: ex?.step });
+    // 대체 운동은 루틴 무게가 없으니 그 운동의 지난 기록을 쓰고, 없으면 가장 가벼운 한 단위에서 시작
+    const baseKg = ex?.step === undefined ? null : exId === e.item.id ? e.item.kg ?? ex.step : ex.step;
+    const recKg = recommendKg({ routineKg: baseKg, routineSavedAt: exId === e.item.id ? routine.created_at : "", last: last[exId], step: ex?.step });
+    const dayIds = day.items.flatMap(i => [i.id, swaps[i.id] ?? i.id]);
+    const isLast = idx === flow.length - 1;
+
     return (
-      <ExerciseCard
-        key={`${slot}:${exId}`}
-        no={no} slot={slot} item={item} exId={exId} log={log} last={last[exId]} recKg={recKg} dayIds={dayIds}
-        onSet={(setNo, kg, reps, done) => run(async () => {
-          const id = log?.id ?? (await logIdFor(slot, exId));
-          await (done ? saveSet(id, setNo, kg, reps) : deleteSet(id, setNo));
-        })}
-        onFeedback={(fb: Feedback) => run(async () => setFeedback(log?.id ?? (await logIdFor(slot, exId)), fb))}
-        onSwap={to => {
-          if (log?.set_logs.length) { setErr("이미 세트를 기록한 운동은 바꿀 수 없습니다. 완료를 풀고 바꾸세요."); return; }
-          setSwaps(s => { const n = { ...s }; if (to === slot) delete n[slot]; else n[slot] = to; return n; });
-        }}
-        onRest={sec => setRestEnd(Date.now() + sec * 1000)}
-      />
+      <div className="workout" ref={overlay}>
+        <div className="screen">
+          <div className="wk-top">
+            <button type="button" className="icon-btn" aria-label="운동 목록으로" onClick={() => setMode({ kind: "overview" })}>✕</button>
+            <div className="segs" aria-hidden="true">
+              {flow.map((f, n) => <span key={f.slot} className={n === idx ? "cur" : statusOf(f) === "done" ? "done" : ""} />)}
+            </div>
+            <span className="wk-count">{idx + 1} / {flow.length}</span>
+          </div>
+          {err && <p className="err" role="alert">{err}</p>}
+          <WorkoutStep
+            key={`${e.slot}:${exId}`}
+            slot={e.slot.startsWith("core:") ? e.item.id : e.slot}
+            item={e.item} exId={exId} log={log} last={last[exId]} recKg={recKg}
+            dayIds={e.slot.startsWith("core:") ? [] : dayIds}
+            onSet={(setNo, kg, reps, done) => run(async () => {
+              const id = log?.id ?? (await logIdFor(e.slot, exId));
+              await (done ? saveSet(id, setNo, kg, reps) : deleteSet(id, setNo));
+            })}
+            onFeedback={(fb: Feedback) => run(async () => setFeedback(log?.id ?? (await logIdFor(e.slot, exId)), fb))}
+            onSwap={to => {
+              if (log?.set_logs.length) { setErr("이미 세트를 기록한 운동은 바꿀 수 없습니다. 완료를 풀고 바꾸세요."); return; }
+              setSwaps(s => { const n = { ...s }; if (to === e.item.id) delete n[e.slot]; else n[e.slot] = to; return n; });
+            }}
+            onRest={sec => setRestEnd(Date.now() + sec * 1000)}
+          />
+        </div>
+        {restEnd !== null && <RestTimer end={restEnd} onAdd={s => setRestEnd(restEnd + s * 1000)} onClose={() => setRestEnd(null)} />}
+        <div className="dock no-tab">
+          <div>
+            <button type="button" className="btn secondary" disabled={idx === 0} onClick={() => setMode({ kind: "workout", idx: idx - 1 })}>이전</button>
+            <button type="button" className="btn primary" onClick={() => { setRestEnd(null); setMode(isLast ? { kind: "summary" } : { kind: "workout", idx: idx + 1 }); }}>
+              {isLast ? "운동 마치기" : `다음 · ${isExerciseId(exIdOf(flow[idx + 1]!)) ? EXERCISES[exIdOf(flow[idx + 1]!) as ExerciseId].name : ""}`}
+            </button>
+          </div>
+        </div>
+      </div>
     );
   }
 
-  if (!loaded) return err ? <p className="err">불러오지 못했습니다: {err}</p> : <p className="muted">불러오는 중…</p>;
+  if (mode.kind === "summary") {
+    const sets = session?.exercise_logs.flatMap(l => l.set_logs) ?? [];
+    const volume = sets.reduce((sum, s) => sum + (s.kg === null ? 0 : Number(s.kg) * s.reps), 0);
+    return (
+      <div className="workout">
+        <div className="screen">
+          <div className="done-hero">
+            <span className="big" aria-hidden="true">✓</span>
+            <h1 className="title">오늘 운동 끝!</h1>
+            <p className="sub">{day.title} · {now.getMonth() + 1}월 {now.getDate()}일</p>
+          </div>
+          <div className="stats">
+            <div><b>{doneCount}/{flow.length}</b><span>운동</span></div>
+            <div><b>{sets.length}</b><span>세트</span></div>
+            <div><b>{Math.round(volume).toLocaleString()}</b><span>총 kg</span></div>
+          </div>
+          <p className="hint">세트마다 고른 체감은 다음 번 추천 무게에 반영됩니다. 루틴을 바꾸고 싶으면 루틴 탭에서 AI에게 물어보세요.</p>
+        </div>
+        <div className="dock no-tab"><div><button type="button" className="btn primary" onClick={() => setMode({ kind: "overview" })}>확인</button></div></div>
+      </div>
+    );
+  }
 
+  const nextIdx = flow.findIndex(e => statusOf(e) !== "done");
   const mon = mondayOf(now);
-  const dayIds = day.items.flatMap(i => [i.id, swaps[i.id] ?? i.id]);
+  const row = (e: Entry, n: number, onClick: () => void, pickable = false) => {
+    const exId = exIdOf(e);
+    const ex = EXERCISES[exId as ExerciseId];
+    const st = pickable ? (chosen === e.item.id ? "done" : "") : statusOf(e);
+    return (
+      <button type="button" className="ex-row" key={e.slot} onClick={onClick}>
+        <img src={`/img/${ex.img}_0.webp`} alt="" width={56} height={56} loading="lazy" />
+        <span>
+          <b>{ex.name}</b>
+          <small>{e.item.sets}세트 × {/^\d+(-\d+)?$/.test(e.item.reps) ? `${e.item.reps}회` : e.item.reps}{e.item.kg !== null && exId === e.item.id ? ` · ${e.item.kg}kg` : ""}{exId !== e.item.id ? " · 대체" : ""}</small>
+        </span>
+        <span className={`status ${st}`} aria-label={st === "done" ? "완료" : st === "part" ? "진행 중" : `${n + 1}번째`}>{st === "done" ? "✓" : ""}</span>
+      </button>
+    );
+  };
 
   return (
-    <>
-      <nav className="tabs" role="tablist" aria-label="운동 날">
-        {keys.map(k => (
-          <button key={k} role="tab" style={{ "--c": dayColor(k) } as React.CSSProperties} aria-selected={k === viewKey}
-            onClick={() => { setViewKey(k); window.scrollTo({ top: 0 }); }}>
-            <span className={k === todayKey ? "today-dot" : ""}>{r.days[k]!.title}</span>
-          </button>
-        ))}
-      </nav>
+    <div className="screen" style={{ "--c": c } as React.CSSProperties}>
+      <header className="today-head">
+        <p className="date">{now.getMonth() + 1}월 {now.getDate()}일 {WEEK_NAMES[now.getDay()]}요일{viewKey !== todayKey ? ` · 오늘은 ${r.days[todayKey]?.title ?? ""}` : ""}</p>
+        <h1>{day.title}</h1>
+        <p className="sub">{day.pickOne ? "하나 골라서" : `본운동 ${day.items.length}개`} + 복근 {r.core.length}개 · {doneCount}/{flow.length} 완료</p>
+        <div className="progress" aria-hidden="true"><span style={{ width: `${(doneCount / flow.length) * 100}%` }} /></div>
+      </header>
 
       <div className="week" aria-label="이번 주 일정">
         {Array.from({ length: 7 }, (_, o) => {
@@ -106,34 +193,48 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
           return (
             <div key={o} className={toISO(d) === today ? "on" : ""}>
               <b>{WEEK_NAMES[d.getDay()]}</b>
-              <span style={{ color: dayColor(k) }}>{r.days[k]?.title.replace(/날$/, "") ?? k}</span>
+              <span style={{ color: dayColor(k), fontWeight: 700 }}>{r.days[k]?.title.replace(/날$/, "") ?? k}</span>
             </div>
           );
         })}
       </div>
 
-      {r.note && <p className="muted" style={{ margin: 0 }}>루틴 메모: {r.note}</p>}
+      <div className="scroll-x" role="group" aria-label="다른 날 운동 하기">
+        {keys.map(k => (
+          <button type="button" key={k} className="chip-btn" aria-pressed={k === viewKey} onClick={() => { setViewKey(k); setPick(null); }}>
+            {r.days[k]!.title}{k === todayKey ? " · 오늘" : ""}
+          </button>
+        ))}
+      </div>
+
+      {r.note && <p className="hint">루틴 메모: {r.note}</p>}
       {err && <p className="err" role="alert">{err}</p>}
-      {viewKey !== todayKey && <p className="hint">오늘은 {r.days[todayKey]?.title ?? todayKey}입니다. 다른 날 운동을 해도 오늘 날짜로 기록됩니다.</p>}
 
-      <section style={{ "--c": c } as React.CSSProperties}>
-        <div className="day-head">
-          <h2>{day.title}</h2>
-          <p>{day.pickOne ? "아래 중 하나를 골라서" : `본운동 ${day.items.length}개`} + 복근 {r.core.length}개</p>
-        </div>
-        <div style={{ display: "grid", gap: 16, marginTop: 16 }}>
-          {day.items.length > 0 && (
-            <>
-              <div className="group-label">{day.pickOne ? "셋 중 하나 골라서" : "본운동 · 순서대로"}</div>
-              <div className="list">{day.items.map((it, i) => card(it, it.id, day.pickOne ? undefined : i + 1, dayIds))}</div>
-            </>
-          )}
-          <div className="group-label" style={{ "--c": "var(--core-fill)" } as React.CSSProperties}>복근 · 매일</div>
-          <div className="list core">{r.core.map((it, i) => card(it, coreSlot(it.id), i + 1, []))}</div>
-        </div>
-      </section>
+      {day.items.length > 0 && (
+        <>
+          <p className="section-label">{day.pickOne ? <span>하나 골라요</span> : <span>본운동 · 순서대로</span>}</p>
+          <div className="ex-list">
+            {day.pickOne
+              ? day.items.map((item, n) => row({ slot: item.id, item }, n, () => setPick(item.id), true))
+              : mainEntries.map((e, n) => row(e, n, () => setMode({ kind: "workout", idx: n })))}
+          </div>
+        </>
+      )}
 
-      {restEnd !== null && <RestTimer end={restEnd} onAdd={s => setRestEnd(restEnd + s * 1000)} onClose={() => setRestEnd(null)} />}
-    </>
+      <p className="section-label"><span>복근 · 매일</span></p>
+      <div className="ex-list">
+        {flow.slice(mainEntries.length).map((e, n) => row(e, n, () => setMode({ kind: "workout", idx: mainEntries.length + n })))}
+      </div>
+
+      <div className="dock">
+        <div>
+          {day.pickOne && !chosen
+            ? <button type="button" className="btn primary" disabled>유산소를 하나 고르세요</button>
+            : <button type="button" className="btn primary" onClick={() => setMode(nextIdx < 0 ? { kind: "summary" } : { kind: "workout", idx: nextIdx })}>
+                {nextIdx < 0 ? "오늘 운동 요약 보기" : doneCount === 0 && !flow.some(e => statusOf(e) === "part") ? "운동 시작" : `이어서 하기 · ${nextIdx + 1}/${flow.length}`}
+              </button>}
+        </div>
+      </div>
+    </div>
   );
 }

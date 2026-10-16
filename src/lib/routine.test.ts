@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_ROUTINES } from "../data/defaultRoutines";
 import { parseDate, weekIndex } from "./dates";
-import { buildAiPrompt, dayKeyFor, extractJson, validateRoutine } from "./routine";
+import { buildAiPrompt, dayKeyFor, dayOrder, extractJson, validateRoutine } from "./routine";
 import { recommendKg } from "./progress";
 
 const d = (s: string) => parseDate(s)!;
@@ -16,6 +16,13 @@ describe("dayKeyFor", () => {
   it("시작일을 주 중간으로 넣어도 그 주가 0주차", () => {
     expect(weekIndex(d("2026-10-15"), d("2026-10-12"))).toBe(0);
     expect(weekIndex(start, d("2026-11-09"))).toBe(4);
+  });
+});
+
+describe("dayOrder", () => {
+  it("DB가 키 순서를 바꿔도 주간 일정 순서로 돌려준다", () => {
+    const shuffled = { ...routine, days: { rest: routine.days.rest!, upper: routine.days.upper!, cardio: routine.days.cardio!, lower: routine.days.lower! } };
+    expect(dayOrder(shuffled)).toEqual(["upper", "lower", "cardio", "rest"]);
   });
 });
 

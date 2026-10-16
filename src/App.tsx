@@ -9,7 +9,11 @@ import History from "./components/History";
 import RoutinePage from "./components/RoutinePage";
 
 type Page = "today" | "history" | "routine";
-const PAGES: [Page, string][] = [["today", "오늘"], ["history", "기록"], ["routine", "루틴"]];
+const TABS: { key: Page; label: string; icon: React.ReactNode }[] = [
+  { key: "today", label: "오늘", icon: <path d="M6.5 6.5v11M17.5 6.5v11M3 9.5v5M21 9.5v5M6.5 12h11" /> },
+  { key: "history", label: "기록", icon: <><rect x="4" y="5" width="16" height="16" rx="2" /><path d="M16 3v4M8 3v4M4 11h16" /></> },
+  { key: "routine", label: "루틴", icon: <><path d="M9 5h10M9 12h10M9 19h10" /><circle cx="5" cy="5" r="1" /><circle cx="5" cy="12" r="1" /><circle cx="5" cy="19" r="1" /></> },
+];
 
 export default function App() {
   const [auth, setAuth] = useState<Session | null | undefined>(undefined);
@@ -40,45 +44,29 @@ export default function App() {
     setProfile(await getProfile());
   }
 
-  if (!configured) return <Shell><div className="panel"><h2>Supabase 연결이 필요합니다</h2><p>.env에 VITE_SUPABASE_URL과 VITE_SUPABASE_ANON_KEY를 넣고 다시 실행하세요. .env.example을 참고하세요.</p></div></Shell>;
-  if (auth === undefined) return <Shell><p className="muted">불러오는 중…</p></Shell>;
-  if (!auth) return <Shell><Login /></Shell>;
-  if (error) return <Shell><p className="err">불러오지 못했습니다: {error}</p></Shell>;
-  if (profile === undefined) return <Shell><p className="muted">불러오는 중…</p></Shell>;
-  if (!profile || !routine) return <Shell><Onboarding onDone={finishOnboarding} /></Shell>;
+  const plain = (children: React.ReactNode) => <div className="screen plain">{children}</div>;
+  if (!configured) return plain(<div className="card"><h2 className="title">Supabase 연결이 필요합니다</h2><p className="sub">.env에 VITE_SUPABASE_URL과 VITE_SUPABASE_ANON_KEY를 넣고 다시 실행하세요.</p></div>);
+  if (auth === undefined) return plain(<p className="muted">불러오는 중…</p>);
+  if (!auth) return plain(<Login />);
+  if (error) return plain(<p className="err">불러오지 못했습니다: {error}</p>);
+  if (profile === undefined) return plain(<p className="muted">불러오는 중…</p>);
+  if (!profile || !routine) return plain(<Onboarding onDone={finishOnboarding} />);
 
   return (
     <>
-      <header className="top">
-        <div className="wrap">
-          <div className="brand">
-            <h1>첫 헬스장 루틴</h1>
-            <nav className="nav" aria-label="메뉴">
-              {PAGES.map(([k, label]) => (
-                <button key={k} aria-current={page === k ? "page" : undefined} onClick={() => { setPage(k); window.scrollTo({ top: 0 }); }}>{label}</button>
-              ))}
-            </nav>
-          </div>
-        </div>
-      </header>
-      <main className="wrap">
-        {page === "today" && <Today profile={profile} routine={routine} />}
-        {page === "history" && <History />}
-        {page === "routine" && <RoutinePage profile={profile} routine={routine} onSaved={setRoutine} />}
-        <footer>
-          {auth.user.email} · <button className="ghost" style={{ padding: "2px 10px" }} onClick={() => supabase.auth.signOut()}>로그아웃</button>
-          <p>운동 사진: free-exercise-db (퍼블릭 도메인). 통증이 날카롭거나 관절이 아프면 그 운동은 멈추고 트레이너에게 자세를 확인받으세요.</p>
-        </footer>
-      </main>
-    </>
-  );
-}
-
-function Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      <header className="top"><div className="wrap"><div className="brand"><h1>첫 헬스장 루틴</h1></div></div></header>
-      <main className="wrap">{children}</main>
+      {page === "today" && <Today profile={profile} routine={routine} />}
+      {page === "history" && <History />}
+      {page === "routine" && <RoutinePage profile={profile} routine={routine} onSaved={setRoutine} email={auth.user.email ?? ""} />}
+      <div className="tabbar">
+        <nav aria-label="메뉴">
+          {TABS.map(t => (
+            <button type="button" key={t.key} aria-current={page === t.key ? "page" : undefined} onClick={() => { setPage(t.key); window.scrollTo({ top: 0 }); }}>
+              <svg viewBox="0 0 24 24" aria-hidden="true">{t.icon}</svg>
+              {t.label}
+            </button>
+          ))}
+        </nav>
+      </div>
     </>
   );
 }
