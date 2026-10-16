@@ -55,7 +55,7 @@ export default function App() {
   return (
     <>
       {page === "today" && <Today profile={profile} routine={routine} />}
-      {page === "history" && <History />}
+      {page === "history" && <History routine={routine} startDate={profile.start_date} />}
       {page === "routine" && <RoutinePage profile={profile} routine={routine} onSaved={setRoutine} email={auth.user.email ?? ""} />}
       <div className="tabbar">
         <nav aria-label="메뉴">

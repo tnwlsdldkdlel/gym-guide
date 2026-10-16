@@ -13,29 +13,15 @@ export const DEFAULT_ROUTINES: Record<"m" | "f", Routine> = {
     "core": [
       {
         "id": "plank",
-        "sets": 3,
+        "sets": 2,
         "reps": "30초",
         "kg": null,
         "restSec": 30
       },
       {
-        "id": "crunch",
-        "sets": 3,
-        "reps": "15회",
-        "kg": null,
-        "restSec": 30
-      },
-      {
         "id": "deadbug",
-        "sets": 3,
+        "sets": 2,
         "reps": "한쪽 10회",
-        "kg": null,
-        "restSec": 30
-      },
-      {
-        "id": "legraise",
-        "sets": 3,
-        "reps": "12회",
         "kg": null,
         "restSec": 30
       }
@@ -78,20 +64,6 @@ export const DEFAULT_ROUTINES: Record<"m" | "f", Routine> = {
             "reps": "15",
             "kg": 4,
             "restSec": 60
-          },
-          {
-            "id": "curl",
-            "sets": 3,
-            "reps": "15",
-            "kg": 6,
-            "restSec": 60
-          },
-          {
-            "id": "pushdown",
-            "sets": 3,
-            "reps": "15",
-            "kg": 15,
-            "restSec": 60
           }
         ]
       },
@@ -118,20 +90,6 @@ export const DEFAULT_ROUTINES: Record<"m" | "f", Routine> = {
             "reps": "12",
             "kg": 30,
             "restSec": 120
-          },
-          {
-            "id": "legcurl",
-            "sets": 3,
-            "reps": "15",
-            "kg": 20,
-            "restSec": 60
-          },
-          {
-            "id": "legext",
-            "sets": 3,
-            "reps": "15",
-            "kg": 25,
-            "restSec": 60
           },
           {
             "id": "bridge",
@@ -186,29 +144,15 @@ export const DEFAULT_ROUTINES: Record<"m" | "f", Routine> = {
     "core": [
       {
         "id": "plank",
-        "sets": 3,
+        "sets": 2,
         "reps": "20–30초",
         "kg": null,
         "restSec": 30
       },
       {
-        "id": "crunch",
-        "sets": 3,
-        "reps": "12–15회",
-        "kg": null,
-        "restSec": 30
-      },
-      {
         "id": "deadbug",
-        "sets": 3,
+        "sets": 2,
         "reps": "한쪽 8–10회",
-        "kg": null,
-        "restSec": 30
-      },
-      {
-        "id": "legraise",
-        "sets": 3,
-        "reps": "10회",
         "kg": null,
         "restSec": 30
       }
@@ -251,20 +195,6 @@ export const DEFAULT_ROUTINES: Record<"m" | "f", Routine> = {
             "reps": "15",
             "kg": 2,
             "restSec": 60
-          },
-          {
-            "id": "curl",
-            "sets": 3,
-            "reps": "15",
-            "kg": 3,
-            "restSec": 60
-          },
-          {
-            "id": "pushdown",
-            "sets": 3,
-            "reps": "15",
-            "kg": 7.5,
-            "restSec": 60
           }
         ]
       },
@@ -291,20 +221,6 @@ export const DEFAULT_ROUTINES: Record<"m" | "f", Routine> = {
             "reps": "12",
             "kg": 15,
             "restSec": 120
-          },
-          {
-            "id": "legcurl",
-            "sets": 3,
-            "reps": "15",
-            "kg": 10,
-            "restSec": 60
-          },
-          {
-            "id": "legext",
-            "sets": 3,
-            "reps": "15",
-            "kg": 10,
-            "restSec": 60
           },
           {
             "id": "bridge",

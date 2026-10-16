@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_ROUTINES } from "../data/defaultRoutines";
-import { parseDate, weekIndex } from "./dates";
-import { buildAiPrompt, dayKeyFor, dayOrder, extractJson, validateRoutine } from "./routine";
+import { dayMark, monthCells, parseDate, toISO, weekIndex } from "./dates";
+import { buildAiPrompt, dayKeyFor, dayOrder, extractJson, planText, removeItem, setsText, unitsOf, validateRoutine } from "./routine";
 import { recommendKg } from "./progress";
 
 const d = (s: string) => parseDate(s)!;
@@ -79,5 +79,76 @@ describe("recommendKg", () => {
   });
   it("맨몸 운동은 그대로", () => {
     expect(recommendKg({ routineKg: null, routineSavedAt: saved })).toBeNull();
+  });
+});
+
+describe("운동 개수 규칙", () => {
+  it("본운동이 4~5개를 벗어나거나 복근이 2개가 아니면 알려 준다", () => {
+    const bad = structuredClone(routine);
+    bad.days.upper!.items.push(bad.days.lower!.items[0]!);
+    bad.days.lower!.items = bad.days.lower!.items.slice(0, 3);
+    bad.core = bad.core.slice(0, 1);
+    const r = validateRoutine(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.errors.join("\n")).toMatch(/days\.upper: 본운동은 4~5개/);
+      expect(r.errors.join("\n")).toMatch(/days\.lower: 본운동은 4~5개/);
+      expect(r.errors.join("\n")).toMatch(/core: 복근은 2개/);
+    }
+  });
+});
+
+describe("removeItem", () => {
+  it("본운동·복근에서 하나를 빼고 원본은 그대로 둔다", () => {
+    const next = removeItem(routine, "upper", 0)!;
+    expect(next.days.upper!.items.map(i => i.id)).toEqual(routine.days.upper!.items.slice(1).map(i => i.id));
+    expect(removeItem(routine, null, 1)!.core.map(i => i.id)).toEqual([routine.core[0]!.id]);
+    expect(routine.days.upper!.items).toHaveLength(5);
+  });
+  it("마지막 하나나 없는 날·번호는 빼지 않는다", () => {
+    const one = removeItem(routine, null, 0)!;
+    expect(removeItem(one, null, 0)).toBeNull();
+    expect(removeItem(routine, "swim", 0)).toBeNull();
+    expect(removeItem(routine, "upper", 9)).toBeNull();
+  });
+});
+
+describe("setsText", () => {
+  it("같으면 묶고, 다르면 세트별로, 맨몸은 무게 없이", () => {
+    expect(setsText([{ kg: 15, reps: 12 }, { kg: 15, reps: 12 }, { kg: 15, reps: 12 }], "회")).toBe("15kg × 12회 3세트");
+    expect(setsText([{ kg: 15, reps: 12 }, { kg: 17.5, reps: 10 }], "회")).toBe("15kg × 12회, 17.5kg × 10회");
+    expect(setsText([{ kg: null, reps: 30 }, { kg: null, reps: 30 }], "초")).toBe("30초 2세트");
+    expect(setsText([{ kg: null, reps: 30 }], "분")).toBe("30분");
+    expect(setsText([])).toBe("");
+  });
+  it("루틴에서 운동별 단위를 뽑는다", () => {
+    const u = unitsOf(routine);
+    expect(u.plank).toBe("초");
+    expect(u.latpull).toBe("회");
+    expect(u.treadmill).toBe("분");
+  });
+});
+
+describe("달력", () => {
+  it("월요일 시작으로 1일 앞을 비운다", () => {
+    const c = monthCells(2026, 9); // 2026-10-01은 목요일
+    expect(c.slice(0, 3)).toEqual([null, null, null]);
+    expect(toISO(c[3]!)).toBe("2026-10-01");
+    expect(c).toHaveLength(3 + 31);
+  });
+  it("운동한 날 동그라미, 지난 날 중 안 한 날 엑스, 시작 전·오늘·미래는 표시 없음", () => {
+    expect(dayMark("2026-10-14", true, "2026-10-12", "2026-10-16")).toBe("done");
+    expect(dayMark("2026-10-15", false, "2026-10-12", "2026-10-16")).toBe("miss");
+    expect(dayMark("2026-10-11", false, "2026-10-12", "2026-10-16")).toBe("");
+    expect(dayMark("2026-10-16", false, "2026-10-12", "2026-10-16")).toBe("");
+    expect(dayMark("2026-10-20", false, "2026-10-12", "2026-10-16")).toBe("");
+  });
+});
+
+describe("planText", () => {
+  it("무게·횟수·세트를 한 줄로", () => {
+    expect(planText({ id: "latpull", sets: 3, reps: "12", kg: 15, restSec: 90 })).toBe("15kg × 12회 3세트");
+    expect(planText({ id: "plank", sets: 2, reps: "20–30초", kg: null, restSec: 30 })).toBe("20–30초 2세트");
+    expect(planText({ id: "treadmill", sets: 1, reps: "30분", kg: null, restSec: 0 })).toBe("30분");
   });
 });

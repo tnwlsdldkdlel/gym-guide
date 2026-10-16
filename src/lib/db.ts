@@ -90,6 +90,7 @@ export function toSummaries(sessions: SessionRow[]): LogSummary[] {
   return sessions.map(s => ({
     date: s.date,
     dayTitle: s.day_title,
+    dayKey: s.day_key,
     exercises: s.exercise_logs.filter(e => e.set_logs.length).map(e => ({
       id: e.exercise_id,
       feedback: e.feedback,

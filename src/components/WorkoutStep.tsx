@@ -43,7 +43,12 @@ export default function WorkoutStep({ slot, item, exId, log, last, recKg, dayIds
   });
   const [sheet, setSheet] = useState<"" | "guide" | "alt">("");
   const [busy, setBusy] = useState(false);
+  // 펼쳐 볼 세트. null이면 아직 안 한 첫 세트를 펼친다
+  const [open, setOpen] = useState<number | null>(null);
   const done = new Set(logged.map(s => s.set_no));
+  const cur = rows.findIndex((_, i) => !done.has(i + 1));
+  const shown = open ?? cur;
+  const allDone = cur < 0;
 
   async function act(fn: () => Promise<void>) {
     setBusy(true);
@@ -61,6 +66,7 @@ export default function WorkoutStep({ slot, item, exId, log, last, recKg, dayIds
   function toggle(i: number) {
     const r = rows[i]!;
     const finishing = !done.has(i + 1);
+    setOpen(null);
     void act(() => onSet(i + 1, r.kg, r.reps, finishing));
     if (finishing && item.restSec > 0) onRest(item.restSec);
   }
@@ -69,60 +75,73 @@ export default function WorkoutStep({ slot, item, exId, log, last, recKg, dayIds
   const swapped = exId !== slot && isExerciseId(slot);
   const kgLabel = swapped ? (e.step ? "가볍게" : "맨몸") : item.kg === null ? "맨몸" : `${e.unit ? `${e.unit} ` : ""}${fmt(item.kg)}kg`;
   const repsLabel = /^\d+(-\d+)?$/.test(item.reps) ? `${item.reps}회` : item.reps;
+  const kgPhrase = kgLabel === "맨몸" ? "" : kgLabel === "가볍게" ? "가볍게 " : `${kgLabel}으로 `;
+
+  const amount = (r: Row) => `${useKg ? `${fmt(r.kg ?? 0)}kg × ` : ""}${r.reps}${unit}`;
 
   return (
     <>
+      <div className="ex-info">
+        {swapped && <p className="swapped">{EXERCISES[slot as ExerciseId].name} 대신 하는 중</p>}
+        <h2>{e.name}</h2>
+        <p className="ex-sum">{kgPhrase}{e.per ? `${e.per} ` : ""}{repsLabel}{item.sets > 1 ? `씩 ${item.sets}세트` : ""}{item.restSec ? `, 쉬는 시간 ${item.restSec}초` : ""}</p>
+        <p className="en">{[e.en, e.gear, ...e.muscles].filter(Boolean).join(" · ")}</p>
+      </div>
+
       <figure className="fig" aria-label={`${e.name} 시작 자세와 끝 자세`}>
         <div className="f"><img src={`/img/${e.img}_0.webp`} alt={`${e.name} 시작 자세`} width={600} height={400} /><span className="tag">① 시작</span></div>
         <div className="f f2"><img src={`/img/${e.img}_1.webp`} alt={`${e.name} 끝 자세`} width={600} height={400} /><span className="tag">② 끝</span></div>
       </figure>
 
-      <div className="ex-info">
-        {swapped && <p className="swapped">대체 중 · 원래 운동: {EXERCISES[slot as ExerciseId].name}</p>}
-        <h2>{e.name}</h2>
-        <p className="en">{e.en}{e.gear ? ` · ${e.gear}` : ""}</p>
-        <div className="chips">{e.muscles.map(m => <span key={m}>{m}</span>)}</div>
-      </div>
-
-      <dl className="plan">
-        <div><dt>세트 × {unit === "회" ? "횟수" : "시간"}</dt><dd>{item.sets} × {e.per ? `${e.per} ` : ""}{repsLabel}</dd></div>
-        <div><dt>무게</dt><dd>{kgLabel}</dd></div>
-        <div><dt>휴식</dt><dd>{item.restSec ? `${item.restSec}초` : "없음"}</dd></div>
-      </dl>
-
-      <div className="row-gap">
-        <button type="button" className="chip-btn" onClick={() => setSheet("guide")}>자세 단계별로 보기</button>
-        {alts.length > 0 && <button type="button" className="chip-btn" onClick={() => setSheet("alt")}>자리가 없어요 · 대체 운동</button>}
+      <div className="links">
+        <button type="button" className="link" onClick={() => setSheet("guide")}>자세 단계별로 보기</button>
+        {alts.length > 0 && <button type="button" className="link" onClick={() => setSheet("alt")}>자리가 없으면 다른 운동으로</button>}
       </div>
 
       {last && (
         <p className="hint">
-          지난번 {last.kg === null ? "맨몸" : `${fmt(last.kg)}kg`}{last.feedback ? ` · ${FB_KO[last.feedback]}` : ""}
-          {useKg && recKg !== last.kg ? ` → 오늘 ${fmt(recKg)}kg 추천` : ""}
+          지난번 {last.kg === null ? "맨몸" : `${fmt(last.kg)}kg`}{last.feedback ? `, ${FB_KO[last.feedback]}` : ""}
+          {useKg && recKg !== last.kg ? `. 오늘은 ${fmt(recKg)}kg을 추천해요` : ""}
         </p>
       )}
 
       <div className="sets">
-        {rows.map((r, i) => (
-          <div className={`set${useKg ? "" : " no-kg"}${done.has(i + 1) ? " done" : ""}`} key={i}>
-            <span className="no">{i + 1}</span>
-            {useKg && (
-              <div className="stepper">
-                <button type="button" aria-label={`${i + 1}세트 무게 내리기`} onClick={() => change(i, { kg: Math.max(0, (r.kg ?? 0) - kgStep) })}>−</button>
-                <span>{fmt(r.kg ?? 0)}kg</span>
-                <button type="button" aria-label={`${i + 1}세트 무게 올리기`} onClick={() => change(i, { kg: (r.kg ?? 0) + kgStep })}>+</button>
-              </div>
-            )}
-            <div className="stepper">
-              <button type="button" aria-label={`${i + 1}세트 줄이기`} onClick={() => change(i, { reps: Math.max(0, r.reps - repStep) })}>−</button>
-              <span>{r.reps}{unit}</span>
-              <button type="button" aria-label={`${i + 1}세트 늘리기`} onClick={() => change(i, { reps: r.reps + repStep })}>+</button>
-            </div>
-            <button type="button" className="check" aria-pressed={done.has(i + 1)} aria-label={`${i + 1}세트 완료`} disabled={busy} onClick={() => toggle(i)}>
-              {done.has(i + 1) ? "✓" : "완료"}
+        {rows.map((r, i) => {
+          const isDone = done.has(i + 1);
+          if (i !== shown) return (
+            <button type="button" className={`set-line${isDone ? " done" : ""}`} key={i} onClick={() => setOpen(i)}>
+              <span className="set-no" aria-hidden="true">{isDone ? "✓" : i + 1}</span>
+              <span>{i + 1}세트{isDone ? " 완료" : ""}</span>
+              <b>{amount(r)}</b>
+              <span className="edit">{isDone ? "수정" : "열기"}</span>
             </button>
-          </div>
-        ))}
+          );
+          return (
+            <div className={`set-card${isDone ? " done" : ""}`} key={i}>
+              <div className="set-card-head">
+                <span>{i === cur ? `지금 ${i + 1}세트` : `${i + 1}세트${isDone ? " 완료" : ""}`}</span>
+                {open !== null && <button type="button" className="link" onClick={() => setOpen(null)}>접기</button>}
+              </div>
+              <div className="set-steppers">
+                {useKg && (
+                  <div className="stepper">
+                    <button type="button" aria-label={`${i + 1}세트 무게 내리기`} onClick={() => change(i, { kg: Math.max(0, (r.kg ?? 0) - kgStep) })}>−</button>
+                    <span>{fmt(r.kg ?? 0)}kg</span>
+                    <button type="button" aria-label={`${i + 1}세트 무게 올리기`} onClick={() => change(i, { kg: (r.kg ?? 0) + kgStep })}>+</button>
+                  </div>
+                )}
+                <div className="stepper">
+                  <button type="button" aria-label={`${i + 1}세트 줄이기`} onClick={() => change(i, { reps: Math.max(0, r.reps - repStep) })}>−</button>
+                  <span>{r.reps}{unit}</span>
+                  <button type="button" aria-label={`${i + 1}세트 늘리기`} onClick={() => change(i, { reps: r.reps + repStep })}>+</button>
+                </div>
+              </div>
+              <button type="button" className={`btn ${isDone ? "secondary" : "go"}`} aria-pressed={isDone} disabled={busy} onClick={() => toggle(i)}>
+                {isDone ? "완료 취소" : `${i + 1}세트 완료`}
+              </button>
+            </div>
+          );
+        })}
         <div className="row-gap">
           <button type="button" className="btn small secondary" onClick={() => setRows([...rows, { ...rows[rows.length - 1]! }])}>+ 세트 추가</button>
           {rows.length > item.sets && !done.has(rows.length) && (
@@ -131,7 +150,7 @@ export default function WorkoutStep({ slot, item, exId, log, last, recKg, dayIds
         </div>
       </div>
 
-      {logged.length > 0 && (
+      {allDone && (
         <div className="card tight" style={{ display: "grid", gap: 10 }}>
           <p className="card-title">오늘 무게 어땠어요?</p>
           <div className="fb" role="group" aria-label="체감">

@@ -24,7 +24,7 @@ export interface Routine {
   weekdayCycle: string[];
   saturday: string;
   sunday: string;
-  /** 매일 하는 복근 */
+  /** 쉬는 날(본운동이 빈 날)을 뺀 매일 하는 복근 */
   core: RoutineItem[];
   days: Record<string, RoutineDay>;
 }
@@ -47,6 +47,35 @@ export function firstNumber(reps: string): number {
   return Number(/\d+/.exec(reps)?.[0] ?? 0);
 }
 
+/** 루틴 항목 한 줄 표기: "15kg × 12회 3세트", 맨몸이면 무게 없이, 1세트면 세트 수 생략 */
+export function planText(i: RoutineItem): string {
+  const reps = /^\d+(-\d+)?$/.test(i.reps) ? `${i.reps}회` : i.reps;
+  return `${i.kg === null ? "" : `${i.kg}kg × `}${reps}${i.sets > 1 ? ` ${i.sets}세트` : ""}`;
+}
+
+/** 세트 기록 한 줄 요약. 무게·횟수가 모두 같으면 "15kg × 12회 3세트", 다르면 세트별로 나열 */
+export function setsText(sets: { kg: number | null; reps: number }[], unit = ""): string {
+  const one = (s: { kg: number | null; reps: number }) => `${s.kg === null ? "" : `${s.kg}kg × `}${s.reps}${unit}`;
+  if (sets.length <= 1) return sets[0] ? one(sets[0]) : "";
+  return sets.every(s => s.kg === sets[0]!.kg && s.reps === sets[0]!.reps) ? `${one(sets[0]!)} ${sets.length}세트` : sets.map(one).join(", ");
+}
+
+/** 운동 id별 횟수 단위(회·초·분). 지금 루틴에 없는 운동은 기록 화면에서 단위 없이 보인다 */
+export function unitsOf(routine: Routine): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const i of [...routine.core, ...Object.values(routine.days).flatMap(d => d.items)]) out[i.id] = repsUnit(i.reps);
+  return out;
+}
+
+/** 운동 하나를 뺀 새 루틴(day가 null이면 복근). 빈 날이 생기지 않게 마지막 하나는 못 뺀다 */
+export function removeItem(routine: Routine, day: string | null, index: number): Routine | null {
+  const list = day === null ? routine.core : routine.days[day]?.items;
+  if (!list || list.length <= 1 || !list[index]) return null;
+  const next = structuredClone(routine);
+  (day === null ? next.core : next.days[day]!.items).splice(index, 1);
+  return next;
+}
+
 export function repsUnit(reps: string): "회" | "초" | "분" {
   return reps.includes("분") ? "분" : reps.includes("초") ? "초" : "회";
 }
@@ -54,6 +83,9 @@ export function repsUnit(reps: string): "회" | "초" | "분" {
 type Result = { ok: true; routine: Routine } | { ok: false; errors: string[] };
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+
+/** 본운동(하나 고르는 날 제외)과 매일 복근 개수 규칙 */
+export const MAIN_MIN = 4, MAIN_MAX = 5, CORE_COUNT = 2;
 
 // AI가 준 JSON은 신뢰할 수 없는 입력이라 저장 전에 전부 검사한다
 export function validateRoutine(input: unknown): Result {
@@ -80,6 +112,8 @@ export function validateRoutine(input: unknown): Result {
   else for (const [key, d] of Object.entries(input.days)) {
     if (!isObj(d) || typeof d.title !== "string") { errors.push(`days.${key}: title이 있는 객체여야 해요.`); continue; }
     days[key] = { title: d.title, items: items(d.items, `days.${key}`), ...(d.pickOne === true && { pickOne: true }) };
+    const n = days[key]!.items.length;
+    if (!days[key]!.pickOne && n > 0 && (n < MAIN_MIN || n > MAIN_MAX)) errors.push(`days.${key}: 본운동은 ${MAIN_MIN}~${MAIN_MAX}개여야 해요. 지금 ${n}개예요.`);
   }
 
   const cycle = input.weekdayCycle;
@@ -88,6 +122,7 @@ export function validateRoutine(input: unknown): Result {
   for (const k of refs) if (typeof k !== "string" || !days[k]) errors.push(`"${String(k)}"는 days에 없는 날이에요.`);
 
   const core = items(input.core, "core");
+  if (core.length !== CORE_COUNT) errors.push(`core: 복근은 ${CORE_COUNT}개여야 해요. 지금 ${core.length}개예요.`);
   if (input.note !== undefined && typeof input.note !== "string") errors.push("note는 문자열이어야 해요.");
   if (errors.length) return { ok: false, errors };
   return {
@@ -102,6 +137,8 @@ export function validateRoutine(input: unknown): Result {
 export interface LogSummary {
   date: string;
   dayTitle: string;
+  /** 날 색을 고르는 데만 쓴다 */
+  dayKey?: string;
   exercises: { id: string; sets: { kg: number | null; reps: number }[]; feedback: "light" | "ok" | "heavy" | null }[];
 }
 
@@ -122,6 +159,8 @@ export function buildAiPrompt(opts: { gender: "m" | "f"; startDate: string; toda
 규칙
 - 답은 아래 "현재 루틴"과 똑같은 구조의 JSON 하나만, 코드 블록으로 줘.
 - 운동 id는 맨 아래 "쓸 수 있는 운동" 목록에 있는 것만 써.
+- 본운동은 날마다 ${MAIN_MIN}~${MAIN_MAX}개(유산소처럼 하나 고르는 날·쉬는 날 제외), 복근(core)은 ${CORE_COUNT}개로 해 줘.
+- 쉬는 날(items가 빈 날)엔 복근도 하지 않아. 운동하는 날은 복근(core)까지 포함해서 하루 운동이 웜업 포함 1시간 안에 끝나게 해 줘. 세트 사이 쉬는 시간과 기구 옮기는 시간(운동마다 약 2분)도 계산에 넣어.
 - 판단 이유는 JSON의 note에 한국어로 2~3문장으로 적어 줘.
 - kg는 숫자(덤벨은 한 개 무게) 또는 맨몸이면 null, restSec는 쉬는 시간(초), reps는 "12"나 "30초" 같은 문자열이야.
 - weekdayCycle은 월~금에 순서대로 돌아가는 날 이름, saturday·sunday는 주말 날 이름이고, 모두 days에 있어야 해.

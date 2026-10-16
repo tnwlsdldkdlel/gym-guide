@@ -2,24 +2,32 @@ import { useState } from "react";
 import { EXERCISES, isExerciseId } from "../data/exercises";
 import { toISO } from "../lib/dates";
 import { getHistory, saveRoutine, supabase, toSummaries, type Profile, type RoutineRow } from "../lib/db";
-import { buildAiPrompt, dayOrder, extractJson, validateRoutine, type Routine } from "../lib/routine";
+import { buildAiPrompt, dayOrder, extractJson, planText, removeItem, validateRoutine, type Routine } from "../lib/routine";
 import Sheet from "./Sheet";
+import { dayColor } from "./Today";
 
 const name = (id: string) => (isExerciseId(id) ? EXERCISES[id].name : id);
 
-function Summary({ routine }: { routine: Routine }) {
+type Remove = (day: string | null, index: number) => void;
+
+function RemoveBtn({ id, last, onRemove }: { id: string; last: boolean; onRemove: () => void }) {
+  return <button type="button" className="rm" aria-label={`${name(id)} 빼기`} disabled={last} onClick={onRemove}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button>;
+}
+
+/** onRemove가 있으면(편집 중) 운동마다 빼기 버튼을 단다 */
+function Summary({ routine, onRemove }: { routine: Routine; onRemove?: Remove }) {
   return (
     <>
-      <p className="hint">평일: {routine.weekdayCycle.map(k => routine.days[k]?.title ?? k).join(" → ")} 반복 · 토 {routine.days[routine.saturday]?.title} · 일 {routine.days[routine.sunday]?.title}</p>
+      <p className="hint">평일엔 {routine.weekdayCycle.map(k => routine.days[k]?.title ?? k).join(", ")} 순서로 돌아가요. 토요일은 {routine.days[routine.saturday]?.title}, 일요일은 {routine.days[routine.sunday]?.title}.</p>
       {dayOrder(routine).map(k => [k, routine.days[k]!] as const).filter(([, d]) => d.items.length).map(([k, d]) => (
-        <section className="list-card" key={k}>
-          <h3>{d.title}{d.pickOne && <span className="badge">하나 골라요</span>}</h3>
-          <ul>{d.items.map((i, n) => <li key={n}><span>{name(i.id)}</span><span className="r">{i.sets}×{i.reps}{i.kg === null ? "" : ` · ${i.kg}kg`}</span></li>)}</ul>
+        <section className="list-card" key={k} style={{ "--dc": dayColor(k) } as React.CSSProperties}>
+          <h3><i className="dot" />{d.title}{d.pickOne && <span className="badge">하나 골라요</span>}</h3>
+          <ul>{d.items.map((i, n) => <li key={n}><span>{name(i.id)}</span><span className="r">{planText(i)}</span>{onRemove && <RemoveBtn id={i.id} last={d.items.length <= 1} onRemove={() => onRemove(k, n)} />}</li>)}</ul>
         </section>
       ))}
       <section className="list-card">
-        <h3>복근 (매일)</h3>
-        <ul>{routine.core.map((i, n) => <li key={n}><span>{name(i.id)}</span><span className="r">{i.sets}×{i.reps}</span></li>)}</ul>
+        <h3><i className="dot" />복근<span className="badge">쉬는 날 빼고 매일</span></h3>
+        <ul>{routine.core.map((i, n) => <li key={n}><span>{name(i.id)}</span><span className="r">{planText(i)}</span>{onRemove && <RemoveBtn id={i.id} last={routine.core.length <= 1} onRemove={() => onRemove(null, n)} />}</li>)}</ul>
       </section>
     </>
   );
@@ -32,6 +40,33 @@ export default function RoutinePage({ profile, routine, onSaved, email }: { prof
   const [text, setText] = useState("");
   const [result, setResult] = useState<ReturnType<typeof validateRoutine> | null>(null);
   const [msg, setMsg] = useState("");
+  // 빼기 직전 루틴. 되돌리기는 이걸 새 루틴으로 다시 저장한다
+  const [undo, setUndo] = useState<Routine | null>(null);
+  const [removeMsg, setRemoveMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  // 빼기 버튼은 편집 중에만 보여서 잘못 누르는 일을 줄인다
+  const [editing, setEditing] = useState(false);
+
+  async function remove(day: string | null, index: number) {
+    const next = removeItem(routine.data, day, index);
+    if (!next || busy) return;
+    const id = (day === null ? routine.data.core : routine.data.days[day]!.items)[index]!.id;
+    setBusy(true);
+    try {
+      const prev = routine.data;
+      onSaved(await saveRoutine(next));
+      setUndo(prev); setRemoveMsg(`루틴에서 ${name(id)} 뺐어요.`);
+    } catch (e) { console.error(e); setUndo(null); setRemoveMsg("저장하지 못했어요. 잠시 후 다시 눌러 주세요."); }
+    finally { setBusy(false); }
+  }
+
+  async function restore() {
+    if (!undo || busy) return;
+    setBusy(true);
+    try { onSaved(await saveRoutine(undo)); setUndo(null); setRemoveMsg("되돌렸어요."); }
+    catch (e) { console.error(e); setRemoveMsg("되돌리지 못했어요. 잠시 후 다시 눌러 주세요."); }
+    finally { setBusy(false); }
+  }
 
   async function copyPrompt() {
     setCopyMsg("최근 기록을 모으는 중…");
@@ -53,7 +88,7 @@ export default function RoutinePage({ profile, routine, onSaved, email }: { prof
     if (!result?.ok) return;
     try {
       onSaved(await saveRoutine(result.routine));
-      setText(""); setResult(null); setPasteOpen(false);
+      setText(""); setResult(null); setPasteOpen(false); setUndo(null); setRemoveMsg("");
       setMsg("새 루틴을 저장했어요. 오늘 탭에 바로 반영돼요.");
     } catch (e) { console.error(e); setResult({ ok: false, errors: ["저장하지 못했어요. 잠시 후 다시 눌러 주세요."] }); }
   }
@@ -63,8 +98,20 @@ export default function RoutinePage({ profile, routine, onSaved, email }: { prof
       <h1 className="title">루틴</h1>
       {msg && <p className="hint" role="status">{msg}</p>}
 
-      <section className="card" style={{ display: "grid", gap: 12 }}>
-        <h3 className="card-title">AI와 루틴 바꾸기</h3>
+      <section className="sec">
+        <div className="sec-head">
+          <h2>지금 루틴 <small>{new Date(routine.created_at).getMonth() + 1}월 {new Date(routine.created_at).getDate()}일 저장</small></h2>
+          <button type="button" className="link" onClick={() => setEditing(!editing)}>{editing ? "완료" : "운동 빼기"}</button>
+        </div>
+        {routine.data.note && <p className="hint">메모: {routine.data.note}</p>}
+        {removeMsg && <p className="hint" role="status">{removeMsg}{undo && <> <button type="button" className="link" onClick={restore}>되돌리기</button></>}</p>}
+        <Summary routine={routine.data} onRemove={editing ? remove : undefined} />
+      </section>
+
+      <hr className="band" />
+
+      <section className="sec">
+        <div className="sec-head"><h2>AI와 루틴 바꾸기</h2></div>
         <p className="sub">최근 2주 기록을 AI에게 보여 주고, 무게를 늘릴지 유지할지 정한 새 루틴을 받아 붙여 넣어요.</p>
         <button type="button" className="btn primary" onClick={copyPrompt}>1. AI에게 물어볼 내용 복사</button>
         {copyMsg && <p className="hint" role="status">{copyMsg}</p>}
@@ -72,11 +119,9 @@ export default function RoutinePage({ profile, routine, onSaved, email }: { prof
         <button type="button" className="btn secondary" onClick={() => setPasteOpen(true)}>2. AI 답 붙여넣기</button>
       </section>
 
-      <div className="section-label"><span>지금 루틴</span><span>{routine.created_at.slice(0, 10)} 저장</span></div>
-      {routine.data.note && <p className="hint">메모: {routine.data.note}</p>}
-      <Summary routine={routine.data} />
+      <hr className="band" />
 
-      <section className="card tight" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+      <section className="account" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
         <span className="sub" style={{ fontSize: "var(--fs-md)", minWidth: 0 }}>{email}</span>
         <button type="button" className="btn small secondary" onClick={() => supabase.auth.signOut()}>로그아웃</button>
       </section>
