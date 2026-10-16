@@ -1,0 +1,146 @@
+/* 모바일 한 손 사용 기준 단일 컬럼. 색은 원판 색 규칙(파랑·빨강·노랑·초록)에서 가져와 상체·하체·복근·유산소를 구분 */
+:root {
+  --bg: #eceff2; --card: #ffffff; --fg: #14181d; --muted: #5a636e; --line: #d5dae0; --soft: #f5f7f9;
+  --upper: #1d5cc0; --lower: #c3322a; --core: #b88a00; --core-ink: #14181d; --core-fill: #f2c230; --cardio: #1d8048; --ok: #1d8048;
+  --font-body: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1215; --card: #191e24; --fg: #e7eaee; --muted: #9aa3ad; --line: #2b323a; --soft: #141920;
+    --upper: #6a9cf0; --lower: #ef6a60; --core: #f2c230; --cardio: #4fc27f; --ok: #4fc27f; color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box }
+html { -webkit-text-size-adjust: 100% }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.65 var(--font-body); word-break: keep-all; overflow-wrap: anywhere; font-variant-numeric: tabular-nums }
+img { max-width: 100% }
+[hidden] { display: none !important }
+.wrap { max-width: 720px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) }
+h1, h2, h3 { text-wrap: balance; margin: 0 }
+button { font: inherit; color: inherit; cursor: pointer }
+button:disabled { opacity: .5; cursor: default }
+:focus-visible { outline: 3px solid var(--upper); outline-offset: 2px }
+.num { font-family: var(--font-body); font-variant-numeric: tabular-nums }
+.muted { color: var(--muted) }
+.err { color: var(--lower); font-weight: 600 }
+
+/* 상단 고정 바 */
+.top { position: sticky; top: 0; z-index: 5; background: var(--card); border-bottom: 1px solid var(--line); padding-top: env(safe-area-inset-top, 0px) }
+.top .wrap { display: flex; flex-direction: column; gap: 10px; padding-block: 12px }
+.brand { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap }
+.brand h1 { font: 800 1.4rem/1.1 var(--font-body); letter-spacing: -.02em }
+.nav { display: inline-flex; background: var(--soft); border: 1px solid var(--line); border-radius: 999px; padding: 3px }
+.nav button { border: 0; background: transparent; padding: 6px 14px; border-radius: 999px; font-weight: 600; color: var(--muted) }
+.nav button[aria-current="page"] { background: var(--fg); color: var(--card) }
+.tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 6px }
+.tabs button { border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 8px 4px; font-weight: 700; font-size: .9rem; line-height: 1.3 }
+.tabs button[aria-selected="true"] { border-color: var(--c); box-shadow: inset 0 -3px 0 var(--c); color: var(--c) }
+.today-dot::after { content: "오늘"; margin-left: 4px; font-size: .65rem; padding: 1px 5px; border-radius: 4px; background: var(--c); color: var(--card); vertical-align: 2px }
+
+main.wrap { display: flex; flex-direction: column; gap: 20px; padding-block: 20px 120px }
+
+/* 주간표 */
+.week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px }
+.week div { text-align: center; padding: 6px 0; border-radius: 8px; background: var(--card); border: 1px solid var(--line); font-size: .78rem; line-height: 1.35; min-width: 0 }
+.week b { display: block; font-size: .9rem }
+.week .on { border-color: var(--fg); border-width: 2px }
+
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 12px }
+.panel h2 { font-size: 1.1rem }
+.panel p { margin: 0 }
+
+.day-head { display: grid; gap: 4px }
+.day-head h2 { font: 800 1.9rem/1.15 var(--font-body); letter-spacing: -.02em; color: var(--c) }
+.day-head p { margin: 0; color: var(--muted) }
+.group-label { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: .85rem; letter-spacing: .06em; color: var(--muted) }
+.group-label::before { content: ""; width: 14px; height: 14px; border-radius: 50%; background: var(--c); box-shadow: inset 0 0 0 4px var(--card), 0 0 0 1px var(--c) }
+.list { display: grid; gap: 16px }
+
+/* 운동 카드 */
+.ex { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; scroll-margin-top: 150px }
+.ex.done { border-color: var(--ok) }
+.ex-head { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px 12px }
+.ex-no { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--c); color: var(--card); font: 600 .95rem var(--font-body) }
+.core .ex-no { background: var(--core-fill); color: var(--core-ink) }
+.ex.done .ex-no { background: var(--ok); color: var(--card) }
+.ex-title { min-width: 0; flex: 1 }
+.ex-title h3 { font-size: 1.15rem; line-height: 1.35 }
+.ex-title .en { color: var(--muted); font-size: .8rem }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px }
+.chips span { font-size: .72rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted) }
+.swapped { margin: 6px 0 0; font-size: .8rem; font-weight: 600; color: var(--c) }
+.plan-line { margin: 4px 0 0; font: 600 .9rem var(--font-body); font-variant-numeric: tabular-nums }
+
+/* 시작·끝 사진을 번갈아 보여서 동작을 보이게 함 */
+.fig { position: relative; aspect-ratio: 3 / 2; max-width: 100%; background: #000; margin: 0 }
+.fig .f { position: absolute; inset: 0 }
+.fig img { width: 100%; height: 100%; object-fit: cover; display: block }
+.fig .f2 { animation: swap 2.6s infinite }
+.fig .tag { position: absolute; left: 10px; top: 10px; background: rgba(0,0,0,.72); color: #fff; font-size: .75rem; font-weight: 600; padding: 3px 9px; border-radius: 6px }
+@keyframes swap { 0%, 42% { opacity: 0 } 50%, 92% { opacity: 1 } 100% { opacity: 0 } }
+@media (prefers-reduced-motion: reduce) {
+  .fig { aspect-ratio: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 2px }
+  .fig .f { position: relative; aspect-ratio: 3 / 2 }
+  .fig .f2 { animation: none }
+}
+
+.row-btns { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 12px }
+.pill { border: 1px solid var(--line); background: var(--soft); border-radius: 999px; padding: 6px 14px; font-size: .85rem; font-weight: 600 }
+.pill[aria-expanded="true"] { border-color: var(--fg) }
+.alts { margin: 0 16px 14px; display: grid; gap: 6px }
+.alts p { margin: 0; font-size: .82rem; color: var(--muted) }
+.alts button { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; text-align: left; border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 10px 12px }
+.alts small { color: var(--muted); font-size: .78rem }
+
+.how { padding: 14px 16px 16px; display: grid; gap: 14px; border-top: 1px solid var(--line) }
+.how h4 { margin: 0 0 4px; font-size: .82rem; letter-spacing: .04em; color: var(--c) }
+.core .how h4 { color: var(--core) }
+.how ol, .how ul { margin: 0; padding-left: 1.3em; display: grid; gap: 4px }
+.how p { margin: 0 }
+.bad li::marker { content: "✕  "; color: var(--lower); font-weight: 700 }
+.tip { background: var(--soft); border-radius: 10px; padding: 10px 12px; font-size: .92rem }
+.yt { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--fg); text-decoration: none; border: 1px solid var(--line); border-radius: 10px; padding: 9px 14px; justify-self: start }
+.yt svg { width: 18px; height: 18px; fill: var(--lower) }
+
+/* 세트 기록 */
+.log { padding: 12px 16px 16px; display: grid; gap: 8px; border-top: 1px solid var(--line) }
+.set { display: grid; grid-template-columns: 28px 1fr 1fr 64px; gap: 8px; align-items: center }
+.set.no-kg { grid-template-columns: 28px 1fr 64px }
+.set .no { font: 600 .9rem var(--font-body); color: var(--muted); text-align: center }
+.step { display: grid; grid-template-columns: 36px 1fr 36px; align-items: center; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; min-width: 0 }
+.step button { border: 0; background: var(--soft); height: 40px; font-size: 1.1rem; font-weight: 700 }
+.step span { text-align: center; font: 600 .95rem var(--font-body); font-variant-numeric: tabular-nums; white-space: nowrap }
+.check { height: 42px; border-radius: 10px; border: 2px solid var(--line); background: var(--card); font-weight: 700 }
+.check[aria-pressed="true"] { background: var(--ok); border-color: var(--ok); color: var(--card) }
+.log-foot { display: flex; flex-wrap: wrap; gap: 6px; justify-content: space-between; align-items: center }
+.fb { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px }
+.fb button { border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 10px 4px; font-weight: 700 }
+.fb button[aria-pressed="true"] { background: var(--fg); color: var(--card); border-color: var(--fg) }
+.hint { font-size: .8rem; color: var(--muted); margin: 0 }
+
+/* 쉬는 시간 타이머 */
+.timer { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; background: var(--fg); color: var(--card); padding-bottom: env(safe-area-inset-bottom, 0px) }
+.timer .wrap { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-block: 12px }
+.timer b { font: 600 1.6rem var(--font-body); font-variant-numeric: tabular-nums }
+.timer button { border: 1px solid currentColor; background: transparent; color: inherit; border-radius: 999px; padding: 6px 12px; font-weight: 600 }
+
+/* 폼 */
+.form { display: grid; gap: 12px }
+.form label { display: grid; gap: 4px; font-weight: 600; font-size: .9rem }
+.form input, textarea { font: inherit; color: var(--fg); background: var(--soft); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; width: 100% }
+textarea { min-height: 180px; font: .82rem/1.5 ui-monospace, Consolas, monospace }
+.primary { border: 0; background: var(--fg); color: var(--card); border-radius: 12px; padding: 12px 16px; font-weight: 700 }
+.ghost { border: 1px solid var(--line); background: var(--card); border-radius: 12px; padding: 10px 14px; font-weight: 600 }
+.seg { display: inline-flex; background: var(--soft); border: 1px solid var(--line); border-radius: 999px; padding: 3px; justify-self: start }
+.seg button { border: 0; background: transparent; padding: 6px 16px; border-radius: 999px; font-weight: 600; color: var(--muted) }
+.seg button[aria-pressed="true"] { background: var(--fg); color: var(--card) }
+
+/* 기록 */
+.hist { display: grid; gap: 10px }
+.hist ul { margin: 0; padding-left: 1.1em; display: grid; gap: 2px; font-size: .9rem }
+.hist .sets { font-family: var(--font-body); font-variant-numeric: tabular-nums; color: var(--muted) }
+.badge { font-size: .72rem; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); margin-left: 4px }
+
+footer { color: var(--muted); font-size: .78rem }
