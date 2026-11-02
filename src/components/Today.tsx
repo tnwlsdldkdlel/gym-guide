@@ -24,7 +24,7 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
   const start = parseDate(profile.start_date) ?? new Date();
   const now = new Date();
   const today = toISO(now);
-  const todayKey = dayKeyFor(r, start, now);
+  const todayKey = dayKeyFor(r, now);
   const keys = dayOrder(r);
   const [saved] = useState(() => { try { return parseTodayView(sessionStorage.getItem(VIEW_KEY), today, routine.id, r); } catch { return null; } });
   const [viewKey, setViewKey] = useState(saved?.viewKey ?? (r.days[todayKey] ? todayKey : keys[0]!));
@@ -257,7 +257,7 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
             </>}
         <div className="week" role="group" aria-label="이번 주 일정. 누르면 그날 운동을 봐요">
           {Array.from({ length: 7 }, (_, o) => {
-            const d = addDays(mon, o), k = dayKeyFor(r, start, d);
+            const d = addDays(mon, o), k = dayKeyFor(r, d);
             return (
               <button type="button" key={o} className={toISO(d) === today ? "today" : ""} aria-current={toISO(d) === today ? "date" : undefined} aria-pressed={o === sel} disabled={!r.days[k]}
                 onClick={() => { setSel(o); setViewKey(k); setPick(null); }}>

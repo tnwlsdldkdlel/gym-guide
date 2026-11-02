@@ -1,5 +1,4 @@
 import { EXERCISES, isExerciseId, type Exercise } from "../data/exercises";
-import { weekIndex } from "./dates";
 
 export type Gender = "m" | "f";
 /** 공용 루틴의 시작 무게. 부부가 같은 루틴을 쓰므로 남녀 따로 적는다. 숫자 하나(예전 형식)면 둘 다 같은 값 */
@@ -25,7 +24,7 @@ export interface RoutineDay<K = number | null> {
 
 export interface Routine<K = number | null> {
   note?: string;
-  /** 월~금에 순서대로 돌아가며, 주를 넘어서도 이어진다 */
+  /** 매주 월요일부터 순서대로 돌아간다. [상체, 하체]면 월수금 상체·화목 하체 */
   weekdayCycle: string[];
   saturday: string;
   sunday: string;
@@ -68,12 +67,11 @@ export function forGender(r: StoredRoutine, g: Gender): Routine {
   return { ...r, core: r.core.map(item), days: Object.fromEntries(Object.entries(r.days).map(([k, d]) => [k, { ...d, items: d.items.map(item) }])) };
 }
 
-export function dayKeyFor<K>(routine: Routine<K>, start: Date, date: Date): string {
+export function dayKeyFor<K>(routine: Routine<K>, date: Date): string {
   const dow = date.getDay();
   if (dow === 6) return routine.saturday;
   if (dow === 0) return routine.sunday;
-  const n = weekIndex(start, date) * 5 + dow - 1;
-  return routine.weekdayCycle[n % routine.weekdayCycle.length] ?? routine.sunday;
+  return routine.weekdayCycle[(dow - 1) % routine.weekdayCycle.length] ?? routine.sunday;
 }
 
 /** jsonb는 키 순서를 바꿔 저장하므로, 화면에서는 주간 일정에 나오는 순서로 정렬한다 */
@@ -241,7 +239,7 @@ export function buildAiPrompt(opts: { gender: Gender; startDate: string; today: 
 - 판단 이유는 JSON의 note에 한국어로 2~3문장으로 적어 줘.
 - kg는 {"m": 남자 무게, "f": 여자 무게}로 둘 다 적어(덤벨은 한 개 무게, 맨몸이면 null). ${other} 기록은 없으니 ${other} 쪽 kg는 현재 루틴 값을 유지하고 내 쪽만 조정해 줘(새 운동이면 비슷한 운동 비율로 정해 줘).
 -  restSec는 쉬는 시간(초), reps는 "12"나 "30초" 같은 문자열이야.
-- weekdayCycle은 월~금에 순서대로 돌아가는 날 이름, saturday·sunday는 주말 날 이름이고, 모두 days에 있어야 해.
+- weekdayCycle은 매주 월요일부터 금요일까지 순서대로 돌아가는 날 이름([상체, 하체]면 월수금 상체·화목 하체), saturday·sunday는 주말 날 이름이고, 모두 days에 있어야 해.
 
 최근 기록 (무게×횟수)
 ${logText}

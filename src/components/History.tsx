@@ -99,7 +99,6 @@ export default function History({ routine, startDate }: { routine: RoutineRow; s
   }, []);
 
   const units = unitsOf(routine.data);
-  const start = parseDate(startDate) ?? now;
   const byDate = new Map((logs ?? []).map(l => [l.date, l]));
   const today = toISO(now);
   const oldest = logs?.at(-1)?.date ?? today;
@@ -133,7 +132,7 @@ export default function History({ routine, startDate }: { routine: RoutineRow; s
               if (!d) return <span key={`b${i}`} />;
               const iso = toISO(d), log = byDate.get(iso);
               // 쉬는 날은 안 하는 게 맞으니 엑스를 치지 않는다(지금 루틴 기준)
-              const rest = !routine.data.days[dayKeyFor(routine.data, start, d)]?.items.length;
+              const rest = !routine.data.days[dayKeyFor(routine.data, d)]?.items.length;
               const mark = rest && !log ? "" : dayMark(iso, Boolean(log), from, today);
               return (
                 <button type="button" key={iso}

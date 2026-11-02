@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { NO_REGION, regionLevels } from "../data/bodyMap";
 import { DEFAULT_ROUTINE, DEFAULT_ROUTINES } from "../data/defaultRoutines";
 import { ALTERNATIVES, EXERCISES } from "../data/exercises";
-import { dayMark, monthCells, parseDate, toISO, weekIndex } from "./dates";
+import { dayMark, monthCells, parseDate, toISO } from "./dates";
 import { bestSeries, buildAiPrompt, cleanMemo, coreFor, equipLabel, forGender, hasLegacyKg, mergeShared, parseTodayView, dayKeyFor, dayOrder, extractJson, planText, removeItem, setsText, unitsOf, validateRoutine } from "./routine";
 import { plannedAt, recommend } from "./progress";
 
@@ -11,13 +11,9 @@ const start = d("2026-10-12"); // 월요일
 const routine = DEFAULT_ROUTINES.f;
 
 describe("dayKeyFor", () => {
-  it("월~금 상체·하체가 주를 넘어 번갈아 가고 주말은 유산소·휴식", () => {
-    const week = ["2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16", "2026-10-17", "2026-10-18", "2026-10-19"];
-    expect(week.map(s => dayKeyFor(routine, start, d(s)))).toEqual(["upper", "lower", "upper", "lower", "upper", "cardio", "rest", "lower"]);
-  });
-  it("시작일을 주 중간으로 넣어도 그 주가 0주차", () => {
-    expect(weekIndex(d("2026-10-15"), d("2026-10-12"))).toBe(0);
-    expect(weekIndex(start, d("2026-11-09"))).toBe(4);
+  it("매주 월수금 상체·화목 하체, 주말은 유산소·휴식", () => {
+    const twoWeeks = ["2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16", "2026-10-17", "2026-10-18", "2026-10-19", "2026-10-20"];
+    expect(twoWeeks.map(s => dayKeyFor(routine, d(s)))).toEqual(["upper", "lower", "upper", "lower", "upper", "cardio", "rest", "upper", "lower"]);
   });
 });
 

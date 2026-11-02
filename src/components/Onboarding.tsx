@@ -25,7 +25,7 @@ export default function Onboarding({ onDone }: { onDone: (p: { gender: "m" | "f"
         </div>
       </div>
       <label>운동 시작한 날<input id="start" type="date" required value={start} onChange={e => setStart(e.target.value)} /></label>
-      <p className="hint">이 날이 든 주의 월요일부터 상체·하체가 번갈아 시작돼요. 같은 날로 맞추면 같은 날 같은 운동을 해요.</p>
+      <p className="hint">기록 달력은 이 날부터 표시돼요. 같은 날로 맞추면 복근 운동 순서도 같아요.</p>
       {msg && <p className="err">{msg}</p>}
       <button className="btn primary" disabled={busy}>시작하기</button>
     </form>

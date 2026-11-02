@@ -1,5 +1,3 @@
-const DAY = 864e5;
-
 export function parseDate(s: string | null | undefined): Date | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s ?? "");
   return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
@@ -17,11 +15,6 @@ export function mondayOf(d: Date): Date {
 
 export function addDays(d: Date, n: number): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
-}
-
-/** 시작한 주를 0으로. 시작일 이전도 0 (서머타임 차이는 round로 흡수) */
-export function weekIndex(start: Date, date: Date): number {
-  return Math.max(0, Math.round((mondayOf(date).getTime() - mondayOf(start).getTime()) / (7 * DAY)));
 }
 
 export const WEEK_NAMES = ["일", "월", "화", "수", "목", "금", "토"] as const;
