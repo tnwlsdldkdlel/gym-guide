@@ -2380,26 +2380,41 @@ export const ALTERNATIVES: Partial<Record<string, string[]>> = {
     "dbbentrow",
     "invrow",
     "closepull",
-    "machinerow"
+    "machinerow",
+    "row",
+    "seatrow",
+    "straightpull"
   ],
   "row": [
     "dbrow",
     "dbbentrow",
     "invrow",
     "seatrow",
-    "machinerow"
+    "machinerow",
+    "latpull",
+    "closepull",
+    "straightpull"
   ],
   "bench": [
     "pushup",
     "floorpushup",
     "incline",
-    "chestpress"
+    "chestpress",
+    "dbfly",
+    "pecdeck",
+    "cablefly"
   ],
   "ohp": [
-    "machineohp"
+    "machineohp",
+    "lateral",
+    "frontraise",
+    "cablelateral"
   ],
   "lateral": [
-    "cablelateral"
+    "cablelateral",
+    "ohp",
+    "frontraise",
+    "machineohp"
   ],
   "curl": [
     "hammer",
@@ -2411,7 +2426,9 @@ export const ALTERNATIVES: Partial<Record<string, string[]>> = {
   "hammer": [
     "curl",
     "concurl",
-    "cablecurl"
+    "cablecurl",
+    "inclinecurl",
+    "machinecurl"
   ],
   "pushdown": [
     "dbkickback",
@@ -2423,234 +2440,432 @@ export const ALTERNATIVES: Partial<Record<string, string[]>> = {
   "overhead": [
     "dbtriext",
     "dbkickback",
-    "pushdown"
+    "pushdown",
+    "benchdip",
+    "machinetri"
   ],
   "goblet": [
     "splitsquat",
     "sumosquat",
     "lunge",
     "bwsquat",
-    "smithsquat"
+    "smithsquat",
+    "stepup",
+    "legpress",
+    "legext"
   ],
   "legpress": [
     "goblet",
     "splitsquat",
     "stepup",
     "hacksquat",
-    "smithsquat"
+    "smithsquat",
+    "lunge",
+    "sumosquat",
+    "bwsquat"
   ],
   "rdl": [
     "dbrdl",
     "bridge",
-    "backext"
+    "backext",
+    "legcurl",
+    "seatcurl",
+    "ballcurl"
   ],
   "legcurl": [
     "dbrdl",
     "ballcurl",
-    "seatcurl"
+    "seatcurl",
+    "rdl"
   ],
   "seatcurl": [
     "dbrdl",
     "ballcurl",
-    "legcurl"
+    "legcurl",
+    "rdl"
   ],
   "legext": [
     "goblet",
     "lunge",
     "splitsquat",
-    "bwsquat"
+    "bwsquat",
+    "stepup",
+    "sumosquat",
+    "legpress",
+    "smithsquat"
   ],
   "lunge": [
     "splitsquat",
-    "stepup"
+    "stepup",
+    "goblet",
+    "sumosquat",
+    "bwsquat",
+    "legpress",
+    "legext",
+    "smithsquat"
   ],
   "bridge": [
     "slbridge",
     "hipthrust",
     "glutekick",
-    "kickback"
+    "kickback",
+    "backext",
+    "abductor",
+    "superman",
+    "sidelegraise"
   ],
   "hipthrust": [
     "bridge",
     "slbridge",
-    "kickback"
+    "kickback",
+    "backext",
+    "abductor",
+    "superman",
+    "glutekick",
+    "sidelegraise"
   ],
   "dbrow": [
     "row",
     "seatrow",
-    "machinerow"
+    "machinerow",
+    "dbbentrow",
+    "latpull",
+    "closepull",
+    "straightpull",
+    "invrow"
   ],
   "machinerow": [
     "dbrow",
     "dbbentrow",
     "row",
-    "seatrow"
+    "seatrow",
+    "latpull",
+    "closepull",
+    "straightpull",
+    "invrow"
   ],
   "seatrow": [
     "dbrow",
     "dbbentrow",
     "row",
-    "machinerow"
+    "machinerow",
+    "latpull",
+    "closepull",
+    "straightpull",
+    "invrow"
   ],
   "chestpress": [
     "bench",
     "pushup",
-    "incline"
+    "incline",
+    "dbfly",
+    "pecdeck",
+    "cablefly",
+    "floorpushup"
   ],
   "pushup": [
     "bench",
-    "chestpress"
+    "chestpress",
+    "incline",
+    "dbfly",
+    "pecdeck",
+    "cablefly",
+    "floorpushup"
   ],
   "machineohp": [
-    "ohp"
+    "ohp",
+    "lateral",
+    "frontraise",
+    "cablelateral"
   ],
   "cablelateral": [
-    "lateral"
+    "lateral",
+    "ohp",
+    "frontraise",
+    "machineohp"
   ],
   "cablecurl": [
     "curl",
-    "hammer"
+    "hammer",
+    "concurl",
+    "inclinecurl",
+    "machinecurl"
   ],
   "dbkickback": [
     "dbtriext",
     "pushdown",
-    "overhead"
+    "overhead",
+    "benchdip",
+    "machinetri"
   ],
   "smithsquat": [
     "goblet",
     "hacksquat",
-    "splitsquat"
+    "splitsquat",
+    "lunge",
+    "stepup",
+    "sumosquat",
+    "bwsquat",
+    "legpress"
   ],
   "stepup": [
     "lunge",
-    "splitsquat"
+    "splitsquat",
+    "goblet",
+    "sumosquat",
+    "bwsquat",
+    "legpress",
+    "legext",
+    "smithsquat"
   ],
   "splitsquat": [
     "lunge",
-    "goblet"
+    "goblet",
+    "stepup",
+    "sumosquat",
+    "bwsquat",
+    "legpress",
+    "legext",
+    "smithsquat"
   ],
   "dbrdl": [
     "rdl",
     "bridge",
-    "backext"
+    "backext",
+    "legcurl",
+    "seatcurl",
+    "ballcurl"
   ],
   "backext": [
     "dbrdl",
     "superman",
-    "bridge"
+    "bridge",
+    "hipthrust",
+    "kickback",
+    "abductor",
+    "slbridge",
+    "glutekick"
   ],
   "ballcurl": [
     "dbrdl",
-    "legcurl"
+    "legcurl",
+    "rdl",
+    "seatcurl"
   ],
   "kickback": [
     "glutekick",
     "bridge",
-    "hipthrust"
+    "hipthrust",
+    "backext",
+    "abductor",
+    "superman",
+    "slbridge",
+    "sidelegraise"
   ],
   "incline": [
     "bench",
     "pushup",
-    "chestpress"
+    "chestpress",
+    "dbfly",
+    "pecdeck",
+    "cablefly",
+    "floorpushup"
   ],
   "dbfly": [
     "pecdeck",
     "cablefly",
-    "bench"
+    "bench",
+    "incline",
+    "pushup",
+    "chestpress",
+    "floorpushup"
   ],
   "pecdeck": [
     "dbfly",
-    "cablefly"
+    "cablefly",
+    "bench",
+    "incline",
+    "pushup",
+    "chestpress",
+    "floorpushup"
   ],
   "cablefly": [
     "dbfly",
-    "pecdeck"
+    "pecdeck",
+    "bench",
+    "incline",
+    "pushup",
+    "chestpress",
+    "floorpushup"
   ],
   "floorpushup": [
     "pushup",
-    "bench"
+    "bench",
+    "incline",
+    "dbfly",
+    "chestpress",
+    "pecdeck",
+    "cablefly"
   ],
   "dbbentrow": [
     "dbrow",
     "invrow",
-    "row"
+    "row",
+    "latpull",
+    "machinerow",
+    "seatrow",
+    "closepull",
+    "straightpull"
   ],
   "closepull": [
     "latpull",
     "dbbentrow",
-    "invrow"
+    "invrow",
+    "dbrow",
+    "row",
+    "machinerow",
+    "seatrow",
+    "straightpull"
   ],
   "straightpull": [
     "dbbentrow",
-    "latpull"
+    "latpull",
+    "dbrow",
+    "row",
+    "machinerow",
+    "seatrow",
+    "closepull",
+    "invrow"
   ],
   "invrow": [
     "dbbentrow",
     "dbrow",
-    "row"
+    "row",
+    "latpull",
+    "machinerow",
+    "seatrow",
+    "closepull",
+    "straightpull"
   ],
   "superman": [
     "backext",
-    "bridge"
+    "bridge",
+    "hipthrust",
+    "kickback",
+    "abductor",
+    "slbridge",
+    "glutekick",
+    "sidelegraise"
   ],
   "frontraise": [
     "ohp",
-    "lateral"
+    "lateral",
+    "machineohp",
+    "cablelateral"
   ],
   "reardelt": [
-    "facepull"
+    "facepull",
+    "dbbentrow",
+    "row",
+    "seatrow"
   ],
   "facepull": [
-    "reardelt"
+    "reardelt",
+    "dbbentrow",
+    "row",
+    "seatrow"
   ],
   "concurl": [
     "curl",
     "hammer",
-    "machinecurl"
+    "machinecurl",
+    "inclinecurl",
+    "cablecurl"
   ],
   "inclinecurl": [
     "curl",
-    "concurl"
+    "concurl",
+    "hammer",
+    "cablecurl",
+    "machinecurl"
   ],
   "machinecurl": [
     "curl",
     "concurl",
-    "cablecurl"
+    "cablecurl",
+    "hammer",
+    "inclinecurl"
   ],
   "benchdip": [
     "dbkickback",
     "dbtriext",
-    "pushdown"
+    "pushdown",
+    "overhead",
+    "machinetri"
   ],
   "dbtriext": [
     "overhead",
     "dbkickback",
-    "benchdip"
+    "benchdip",
+    "pushdown",
+    "machinetri"
   ],
   "machinetri": [
     "dbtriext",
     "benchdip",
-    "pushdown"
+    "pushdown",
+    "dbkickback",
+    "overhead"
   ],
   "bwsquat": [
     "goblet",
-    "splitsquat"
+    "splitsquat",
+    "lunge",
+    "stepup",
+    "sumosquat",
+    "legpress",
+    "legext",
+    "smithsquat"
   ],
   "sumosquat": [
     "adductor",
-    "goblet"
+    "goblet",
+    "lunge",
+    "stepup",
+    "splitsquat",
+    "bwsquat",
+    "legpress",
+    "legext"
   ],
   "hacksquat": [
     "goblet",
     "sumosquat",
-    "legpress"
+    "legpress",
+    "lunge",
+    "stepup",
+    "splitsquat",
+    "bwsquat",
+    "legext"
   ],
   "abductor": [
     "sidelegraise",
-    "bridge"
+    "bridge",
+    "backext",
+    "hipthrust",
+    "kickback",
+    "superman",
+    "slbridge",
+    "glutekick"
   ],
   "adductor": [
-    "sumosquat"
+    "sumosquat",
+    "goblet",
+    "lunge",
+    "stepup",
+    "splitsquat",
+    "bwsquat",
+    "legpress",
+    "legext"
   ],
   "calfraise": [
     "dbcalf"
@@ -2660,14 +2875,33 @@ export const ALTERNATIVES: Partial<Record<string, string[]>> = {
   ],
   "slbridge": [
     "bridge",
-    "hipthrust"
+    "hipthrust",
+    "backext",
+    "kickback",
+    "abductor",
+    "superman",
+    "glutekick",
+    "sidelegraise"
   ],
   "glutekick": [
     "kickback",
-    "bridge"
+    "bridge",
+    "backext",
+    "hipthrust",
+    "abductor",
+    "superman",
+    "slbridge",
+    "sidelegraise"
   ],
   "sidelegraise": [
-    "abductor"
+    "abductor",
+    "backext",
+    "hipthrust",
+    "kickback",
+    "bridge",
+    "superman",
+    "slbridge",
+    "glutekick"
   ],
   "plank": [
     "sideplank",
@@ -2752,6 +2986,10 @@ export const ALTERNATIVES: Partial<Record<string, string[]>> = {
   "ballcrunch": [
     "crunch",
     "cablecrunch"
+  ],
+  "shrug": [
+    "dbbentrow",
+    "facepull"
   ]
 };
 
