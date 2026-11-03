@@ -28,7 +28,7 @@ export interface Routine<K = number | null> {
   weekdayCycle: string[];
   saturday: string;
   sunday: string;
-  /** 쉬는 날(본운동이 빈 날)을 뺀 매일 하는 복근 */
+  /** 쉬는 날(본운동이 빈 날)을 뺀 매일 하는 복근. 비어 있으면 복근을 안 한다 */
   core: RoutineItem<K>[];
   days: Record<string, RoutineDay<K>>;
 }
@@ -128,10 +128,10 @@ export function unitsOf<K>(routine: Routine<K>): Record<string, string> {
   return out;
 }
 
-/** 운동 하나를 뺀 새 루틴(day가 null이면 복근). 빈 날이 생기지 않게 마지막 하나는 못 뺀다 */
+/** 운동 하나를 뺀 새 루틴(day가 null이면 복근). 본운동은 빈 날이 생기지 않게 마지막 하나는 못 빼고, 복근은 다 뺄 수 있다 */
 export function removeItem<K>(routine: Routine<K>, day: string | null, index: number): Routine<K> | null {
   const list = day === null ? routine.core : routine.days[day]?.items;
-  if (!list || list.length <= (day === null ? CORE_DAILY : 1) || !list[index]) return null;
+  if (!list || (day !== null && list.length <= 1) || !list[index]) return null;
   const next = structuredClone(routine);
   (day === null ? next.core : next.days[day]!.items).splice(index, 1);
   return next;
@@ -194,7 +194,7 @@ export function validateRoutine(input: unknown): Result {
   for (const k of refs) if (typeof k !== "string" || !days[k]) errors.push(`"${String(k)}"는 days에 없는 날이에요.`);
 
   const core = items(input.core, "core");
-  if (core.length < CORE_DAILY || core.length > CORE_MAX) errors.push(`core: 복근 후보는 ${CORE_DAILY}~${CORE_MAX}개여야 해요. 지금 ${core.length}개예요.`);
+  if (core.length > CORE_MAX) errors.push(`core: 복근 후보는 ${CORE_MAX}개까지예요(안 하면 빈 배열). 지금 ${core.length}개예요.`);
   if (new Set(core.map(i => i.id)).size !== core.length) errors.push("core: 같은 복근 운동이 두 번 들어 있어요.");
   if (input.note !== undefined && typeof input.note !== "string") errors.push("note는 문자열이어야 해요.");
   if (errors.length) return { ok: false, errors };
@@ -233,9 +233,12 @@ export function buildAiPrompt(opts: { gender: Gender; startDate: string; today: 
 규칙
 - 답은 아래 "현재 루틴"과 똑같은 구조의 JSON 하나만, 코드 블록으로 줘.
 - 운동 id는 맨 아래 "쓸 수 있는 운동" 목록에 있는 것만 써.
-- 본운동은 날마다 ${MAIN_MIN}~${MAIN_MAX}개(유산소처럼 하나 고르는 날·쉬는 날 제외), 복근(core)은 후보 ${CORE_DAILY}~${CORE_MAX}개로 줘. 앱이 하루 ${CORE_DAILY}개씩 순서대로 돌아가며 시켜서, 하루 시간은 복근 ${CORE_DAILY}개 기준으로 계산해.
+- 본운동은 날마다 ${MAIN_MIN}~${MAIN_MAX}개(유산소처럼 하나 고르는 날·쉬는 날 제외), ${routine.core.length
+    ? `복근(core)은 후보 ${CORE_DAILY}~${CORE_MAX}개로 줘. 앱이 하루 ${CORE_DAILY}개씩 순서대로 돌아가며 시켜서, 하루 시간은 복근 ${CORE_DAILY}개 기준으로 계산해.`
+    : "복근은 하지 않으니 core는 빈 배열 []로 줘."}
 - 쉬는 날(items가 빈 날)엔 복근도 하지 않아. 운동하는 날은 복근(core)까지 포함해서 하루 운동이 웜업 포함 1시간 안에 끝나게 해 줘. 세트 사이 쉬는 시간과 기구 옮기는 시간(운동마다 약 2분)도 계산에 넣어.
 - 기구 자리가 없어도 할 수 있게, 본운동은 날마다 덤벨·맨몸 운동을 절반 이상 섞어 줘(운동 목록 괄호 안에 덤벨·맨몸·기구로 적혀 있어).
+- 헬스장에 스트레칭존(바닥 매트 자리)이 없어서 바닥에 눕거나 엎드리는 운동(글루트 브릿지·플랭크 등)은 넣지 마.
 - 판단 이유는 JSON의 note에 한국어로 2~3문장으로 적어 줘.
 - kg는 {"m": 남자 무게, "f": 여자 무게}로 둘 다 적어(덤벨은 한 개 무게, 맨몸이면 null). ${other} 기록은 없으니 ${other} 쪽 kg는 현재 루틴 값을 유지하고 내 쪽만 조정해 줘(새 운동이면 비슷한 운동 비율로 정해 줘).
 -  restSec는 쉬는 시간(초), reps는 "12"나 "30초" 같은 문자열이야.

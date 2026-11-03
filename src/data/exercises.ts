@@ -813,6 +813,36 @@ const DATA = {
     ],
     "tip": "기구가 자세를 잡아 줘서 처음 쓰기 편합니다. 무게 표기는 기구마다 다릅니다."
   },
+  "seatrow": {
+    "name": "머신 시티드 로우",
+    "en": "Machine Seated Row",
+    "img": "Leverage_Iso_Row",
+    "muscles": [
+      "등 가운데",
+      "등(광배근)",
+      "이두"
+    ],
+    "kind": "strength",
+    "gear": "시티드 로우 머신",
+    "step": 2.5,
+    "note": "기구 표기 무게",
+    "setup": [
+      "의자 높이를 손잡이가 가슴 높이에 오도록 맞춥니다.",
+      "가슴 패드가 있으면 가슴을 패드에 붙이고 앉습니다."
+    ],
+    "steps": [
+      "양손으로 손잡이를 하나씩 잡고 팔을 앞으로 뻗은 상태에서 시작합니다.",
+      "팔꿈치를 몸통 옆을 스치듯 뒤로 당겨 손잡이를 옆구리 쪽으로 가져옵니다.",
+      "끝에서 1초 날개뼈를 모읍니다.",
+      "천천히 팔을 펴며 돌아갑니다."
+    ],
+    "breath": "당길 때 내쉬고, 돌아갈 때 들이마십니다.",
+    "bad": [
+      "가슴이 패드에서 떨어지며 상체로 당기기",
+      "어깨가 귀 쪽으로 으쓱 올라가기"
+    ],
+    "tip": "케이블 로우처럼 몸통 쪽으로 당기는 운동인데, 가슴을 패드에 대서 허리 부담이 적습니다. 무게 표기는 기구마다 다릅니다."
+  },
   "chestpress": {
     "name": "머신 체스트 프레스",
     "en": "Machine Chest Press",
@@ -2356,6 +2386,7 @@ export const ALTERNATIVES: Partial<Record<string, string[]>> = {
     "dbrow",
     "dbbentrow",
     "invrow",
+    "seatrow",
     "machinerow"
   ],
   "bench": [
@@ -2446,12 +2477,20 @@ export const ALTERNATIVES: Partial<Record<string, string[]>> = {
   ],
   "dbrow": [
     "row",
+    "seatrow",
     "machinerow"
   ],
   "machinerow": [
     "dbrow",
     "dbbentrow",
-    "row"
+    "row",
+    "seatrow"
+  ],
+  "seatrow": [
+    "dbrow",
+    "dbbentrow",
+    "row",
+    "machinerow"
   ],
   "chestpress": [
     "bench",

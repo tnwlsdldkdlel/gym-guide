@@ -285,14 +285,14 @@ export default function Today({ profile, routine }: { profile: Profile; routine:
         </section>
       )}
 
-      {day.items.length > 0 && <hr className="band" />}
+      {day.items.length > 0 && coreToday.length > 0 && <hr className="band" />}
 
       {restDay ? (
         <div className="empty">
           <p className="card-title">푹 쉬는 날이에요</p>
           <p className="sub">가볍게 걷거나 스트레칭 정도면 충분해요.</p>
         </div>
-      ) : (
+      ) : coreToday.length > 0 && (
         <section className="sec">
           <div className="sec-head"><h2>복근 <span>{coreToday.length}</span></h2><small>{r.core.length > coreToday.length ? "날마다 바뀌어요" : "쉬는 날 빼고 매일"}</small></div>
           <div className="ex-list">

@@ -24,10 +24,10 @@ function Summary({ routine, onRemove }: { routine: Routine; onRemove?: Remove })
           <ul>{d.items.map((i, n) => <li key={n}><span>{name(i.id)}</span><span className="r">{planText(i)}</span>{onRemove && <RemoveBtn id={i.id} last={d.items.length <= 1} onRemove={() => onRemove(k, n)} />}</li>)}</ul>
         </section>
       ))}
-      <section className="list-card">
+      {routine.core.length > 0 && <section className="list-card">
         <h3><i className="dot" />복근<span className="badge">{routine.core.length > CORE_DAILY ? `하루 ${CORE_DAILY}개씩 돌아가며` : "쉬는 날 빼고 매일"}</span></h3>
-        <ul>{routine.core.map((i, n) => <li key={n}><span>{name(i.id)}</span><span className="r">{planText(i)}</span>{onRemove && <RemoveBtn id={i.id} last={routine.core.length <= CORE_DAILY} onRemove={() => onRemove(null, n)} />}</li>)}</ul>
-      </section>
+        <ul>{routine.core.map((i, n) => <li key={n}><span>{name(i.id)}</span><span className="r">{planText(i)}</span>{onRemove && <RemoveBtn id={i.id} last={false} onRemove={() => onRemove(null, n)} />}</li>)}</ul>
+      </section>}
     </>
   );
 }

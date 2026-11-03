@@ -99,18 +99,27 @@ describe("plannedAt", () => {
 });
 
 describe("운동 개수 규칙", () => {
-  it("본운동이 4~5개를 벗어나거나 복근 후보가 2~6개를 벗어나면 알려 준다", () => {
+  it("본운동이 4~5개를 벗어나거나 복근 후보가 6개를 넘으면 알려 준다", () => {
     const bad = structuredClone(routine);
     bad.days.upper!.items.push(bad.days.lower!.items[0]!);
     bad.days.lower!.items = bad.days.lower!.items.slice(0, 3);
-    bad.core = bad.core.slice(0, 1);
+    bad.core.push({ ...bad.core[0]!, id: "kneeraise" });
     const r = validateRoutine(bad);
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(r.errors.join("\n")).toMatch(/days\.upper: 본운동은 4~5개/);
       expect(r.errors.join("\n")).toMatch(/days\.lower: 본운동은 4~5개/);
-      expect(r.errors.join("\n")).toMatch(/core: 복근 후보는 2~6개/);
+      expect(r.errors.join("\n")).toMatch(/core: 복근 후보는 6개까지/);
     }
+  });
+  it("복근을 안 하는 루틴(core 빈 배열)도 받고, AI 질문도 빈 배열로 달라고 한다", () => {
+    const r = validateRoutine({ ...routine, core: [] });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.routine.core).toEqual([]);
+    expect(coreFor({ ...routine, core: [] }, start, d("2026-10-14"))).toEqual([]);
+    const prompt = buildAiPrompt({ gender: "f", startDate: "2026-10-12", today: "2026-10-14", routine: { ...routine, core: [] }, logs: [] });
+    expect(prompt).toMatch(/core는 빈 배열/);
+    expect(prompt).not.toMatch(/복근\(core\)은 후보/);
   });
 });
 
@@ -139,9 +148,15 @@ describe("removeItem", () => {
     expect(removeItem(routine, null, 1)!.core.map(i => i.id)).toEqual(routine.core.filter((_, n) => n !== 1).map(i => i.id));
     expect(routine.days.upper!.items).toHaveLength(5);
   });
-  it("본운동 마지막 하나, 복근 후보 2개 이하, 없는 날·번호는 빼지 않는다", () => {
-    const two = { ...routine, core: routine.core.slice(0, 2) };
-    expect(removeItem(two, null, 0)).toBeNull();
+  it("복근은 마지막 하나까지 뺄 수 있다", () => {
+    const one = { ...routine, core: routine.core.slice(0, 1) };
+    expect(removeItem(one, null, 0)!.core).toEqual([]);
+    expect(removeItem({ ...routine, core: [] }, null, 0)).toBeNull();
+  });
+  it("본운동 마지막 하나, 없는 날·번호는 빼지 않는다", () => {
+    const solo = structuredClone(routine);
+    solo.days.upper!.items = solo.days.upper!.items.slice(0, 1);
+    expect(removeItem(solo, "upper", 0)).toBeNull();
     expect(removeItem(routine, "swim", 0)).toBeNull();
     expect(removeItem(routine, "upper", 9)).toBeNull();
   });
